@@ -7,14 +7,28 @@ import { Button } from "@/components/ui/button";
 import { savePdfUrl } from "@/actions/inspections";
 import { useRouter } from "next/navigation";
 
+async function downloadPdf(url: string, filename: string) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export function GeneratePdfButton({
   inspectionId,
   existingPdfUrl,
+  reportId,
 }: {
   inspectionId: string;
   existingPdfUrl?: string | null;
+  reportId?: string | null;
 }) {
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const router = useRouter();
 
   async function handleGenerate() {
@@ -63,14 +77,28 @@ export function GeneratePdfButton({
             <ExternalLink className="w-3.5 h-3.5" />
             View
           </a>
-          <a
-            href={existingPdfUrl}
-            download
-            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline underline-offset-2"
+          <button
+            onClick={async () => {
+              setDownloading(true);
+              try {
+                const filename = `${reportId ?? inspectionId}.pdf`;
+                await downloadPdf(existingPdfUrl, filename);
+              } catch {
+                toast.error("Download failed.");
+              } finally {
+                setDownloading(false);
+              }
+            }}
+            disabled={downloading}
+            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline underline-offset-2 disabled:opacity-50"
           >
-            <Download className="w-3.5 h-3.5" />
-            Download
-          </a>
+            {downloading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5" />
+            )}
+            {downloading ? "Downloading..." : "Download"}
+          </button>
         </>
       )}
     </div>

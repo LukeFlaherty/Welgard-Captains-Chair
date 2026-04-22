@@ -126,6 +126,7 @@ export default async function InspectionViewPage({
           <GeneratePdfButton
             inspectionId={id}
             existingPdfUrl={inspection.generatedPdfUrl}
+            reportId={inspection.reportId}
           />
         </div>
       </div>
