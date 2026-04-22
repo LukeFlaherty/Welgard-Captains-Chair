@@ -2,6 +2,16 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 config();
 
+// Safety: refuse to run against a production database URL
+const dbUrl = process.env.DATABASE_URL ?? "";
+if (!dbUrl.includes("localhost") && process.env.ALLOW_PROD_SEED !== "true") {
+  const host = dbUrl.match(/@([^/]+)\//)?.[1] ?? "unknown";
+  console.error(`\nSeed aborted — looks like a remote database (${host}).`);
+  console.error("This script DELETES ALL DATA. If you really mean it, re-run with:");
+  console.error("  ALLOW_PROD_SEED=true npx tsx prisma/seed.ts\n");
+  process.exit(1);
+}
+
 import { PrismaClient } from "../src/generated/prisma";
 import { PrismaPg } from "@prisma/adapter-pg";
 
