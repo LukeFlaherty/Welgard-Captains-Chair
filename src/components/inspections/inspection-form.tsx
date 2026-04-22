@@ -255,9 +255,10 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadedPhotos, setUploadedPhotos] = useState<
-    { url: string; label: string }[]
+    { id?: string; url: string; label: string }[]
   >(
-    inspection?.photos.map((p: { url: string; label: string | null }) => ({
+    inspection?.photos.map((p) => ({
+      id: p.id,
       url: p.url,
       label: p.label ?? "additional",
     })) ?? []
@@ -333,7 +334,10 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
       const res = await fetch("/api/photos", { method: "POST", body: fd });
       const json = await res.json();
       if (json.url) {
-        setUploadedPhotos((prev) => [...prev, { url: json.url, label }]);
+        setUploadedPhotos((prev) => [
+          ...prev.filter((p) => p.label !== label),
+          { id: json.id as string | undefined, url: json.url as string, label },
+        ]);
         toast.success("Photo uploaded.");
       } else {
         toast.error("Upload failed.");
@@ -747,13 +751,18 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                         />
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={async () => {
+                            if (existing.id) {
+                              try {
+                                await fetch(`/api/photos?id=${existing.id}`, { method: "DELETE" });
+                              } catch { /* best-effort */ }
+                            }
                             setUploadedPhotos((prev) =>
                               prev.filter(
                                 (p) => !(p.label === label && p.url === existing.url)
                               )
-                            )
-                          }
+                            );
+                          }}
                           className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 hover:bg-black"
                         >
                           <X className="w-3 h-3 text-white" />

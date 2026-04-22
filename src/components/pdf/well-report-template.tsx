@@ -483,8 +483,26 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
 
         <View style={s.body}>
           {/* Property front photo */}
-          {propertyPhoto && (
+          {propertyPhoto ? (
             <Image src={propertyPhoto.url} style={s.coverPhoto} />
+          ) : (
+            <View
+              style={[
+                s.coverPhoto,
+                {
+                  backgroundColor: C.bg,
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  borderRadius: 6,
+                  alignItems: "center",
+                  justifyContent: "center",
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 10, color: C.muted, fontStyle: "italic" }}>
+                No image provided of the home.
+              </Text>
+            </View>
           )}
 
           {/* Status Banner */}
