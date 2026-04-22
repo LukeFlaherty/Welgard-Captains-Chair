@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Lightweight anchor entities ──────────────────────────────────────────────
+
+model Member {
+  id             String       @id @default(cuid())
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
+  serviceAddress String?
+  ghlContactId   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  inspections    Inspection[]
+}
+
+model Vendor {
+  id             String       @id @default(cuid())
+  companyName    String
+  inspectorName  String?
+  email          String?
+  phone          String?
+  licenseNumber  String?
+  ghlReferenceId String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  inspections    Inspection[]
+}
+
+// ─── Primary V1 entity ────────────────────────────────────────────────────────
+
+model Inspection {
+  id String @id @default(cuid())
+
+  memberId String?
+  vendorId String?
+  member   Member? @relation(fields: [memberId], references: [id])
+  vendor   Vendor? @relation(fields: [vendorId], references: [id])
+
+  homeownerName   String
+  homeownerEmail  String?
+  homeownerPhone  String?
+  propertyAddress String
+  city            String?
+  state           String?
+  zip             String?
+
+  inspectorName     String?
+  inspectionCompany String?
+  inspectionDate    DateTime
+
+  wellType             String?
+  wellDepthFt          Float?
+  pumpType             String?
+  pumpAgeYears         Int?
+  pressureTankAgeYears Int?
+
+  casingCondition   String?
+  wellCapCondition  String?
+  wiringCondition   String?
+  visibleLeaks      Boolean @default(false)
+  safetyIssues      Boolean @default(false)
+  contaminationRisk Boolean @default(false)
+  systemOperational Boolean @default(true)
+  pressureOk        Boolean @default(true)
+  flowOk            Boolean @default(true)
+  siteClearanceOk   Boolean @default(true)
+
+  inspectorNotes        String?
+  internalReviewerNotes String?
+  requiredRepairs       String?
+  recommendedRepairs    String?
+  memberFacingSummary   String?
+
+  systemScore     Int?
+  systemStatus    String   @default("green")
+  finalStatus     String   @default("green")
+  overrideReason  String?
+  statusRationale String[]
+
+  reportId          String?
+  generatedPdfUrl   String?
+  reportGeneratedAt DateTime?
+
+  ghlContactId     String?
+  ghlOpportunityId String?
+  ghlLocationId    String?
+  ghlSyncStatus    String   @default("pending")
+  lastSyncedAt     DateTime?
+
+  isDraft   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  photos InspectionPhoto[]
+}
+
+model InspectionPhoto {
+  id           String     @id @default(cuid())
+  inspectionId String
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  url          String
+  label        String?
+  fileName     String?
+  createdAt    DateTime   @default(now())
+}
