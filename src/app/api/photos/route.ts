@@ -5,24 +5,44 @@ import { db } from "@/lib/db";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  const ctx: Record<string, unknown> = {};
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const label = (formData.get("label") as string) ?? "additional";
     const inspectionId = formData.get("inspectionId") as string | null;
 
+    Object.assign(ctx, {
+      label,
+      inspectionId,
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+    });
+
     if (!file) {
+      console.warn("[Photo upload] No file in request", ctx);
       return NextResponse.json({ error: "No file provided." }, { status: 400 });
     }
+
+    console.log("[Photo upload] Starting blob upload", ctx);
 
     const ext = file.name.split(".").pop() ?? "jpg";
     const filename = `photos/${inspectionId ?? "draft"}/${label}-${Date.now()}.${ext}`;
 
-    const blob = await put(filename, file, {
-      access: "public",
-      contentType: file.type,
-      addRandomSuffix: false,
-    });
+    let blob: Awaited<ReturnType<typeof put>>;
+    try {
+      blob = await put(filename, file, {
+        access: "public",
+        contentType: file.type,
+        addRandomSuffix: false,
+      });
+    } catch (blobErr) {
+      console.error("[Photo upload] Blob upload failed", { ...ctx, error: blobErr });
+      throw blobErr;
+    }
+
+    console.log("[Photo upload] Blob upload succeeded", { ...ctx, blobUrl: blob.url });
 
     let photoId: string | undefined;
 
@@ -40,11 +60,16 @@ export async function POST(req: Request) {
         data: { inspectionId, url: blob.url, label, fileName: file.name },
       });
       photoId = photo.id;
+      console.log("[Photo upload] DB record created", { ...ctx, photoId });
     }
 
     return NextResponse.json({ url: blob.url, id: photoId });
   } catch (err) {
-    console.error("[Photo upload]", err);
+    console.error("[Photo upload] Unhandled error", {
+      ...ctx,
+      error: err instanceof Error ? err.message : err,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Upload failed." },
       { status: 500 }

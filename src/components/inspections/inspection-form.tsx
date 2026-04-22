@@ -340,10 +340,13 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
         ]);
         toast.success("Photo uploaded.");
       } else {
-        toast.error("Upload failed.");
+        const msg = (json.error as string | undefined) ?? "Upload failed.";
+        console.error("[Photo upload] Server error", { label, file: file.name, size: file.size, error: msg });
+        toast.error(msg);
       }
-    } catch {
-      toast.error("Upload failed.");
+    } catch (err) {
+      console.error("[Photo upload] Network error", { label, file: file.name, size: file.size, error: err });
+      toast.error("Upload failed — check your connection.");
     } finally {
       setUploadingPhoto(false);
       e.target.value = "";
