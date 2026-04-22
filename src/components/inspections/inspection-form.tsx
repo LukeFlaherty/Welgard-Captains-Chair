@@ -35,6 +35,7 @@ import type { InspectionWithRelations } from "@/types/inspection";
 // ─── Zod schema ───────────────────────────────────────────────────────────────
 
 const schema = z.object({
+  inspectorId: z.string().optional(),
   homeownerName: z.string().min(1, "Owner name is required"),
   homeownerEmail: z.string().email("Invalid email").or(z.literal("")).optional(),
   homeownerPhone: z.string().optional(),
@@ -197,13 +198,17 @@ function ScorePreview({ values }: { values: Partial<FormValues> }) {
 
 // ─── Main form ────────────────────────────────────────────────────────────────
 
+type InspectorOption = { id: string; name: string; company: string | null };
+
 type Props = {
   mode: "create" | "edit";
   inspection?: InspectionWithRelations;
+  inspectors?: InspectorOption[];
 };
 
 function toFormValues(inspection: InspectionWithRelations): FormValues {
   return {
+    inspectorId: inspection.inspectorId ?? "",
     homeownerName: inspection.homeownerName,
     homeownerEmail: inspection.homeownerEmail ?? "",
     homeownerPhone: inspection.homeownerPhone ?? "",
@@ -245,7 +250,7 @@ function toFormValues(inspection: InspectionWithRelations): FormValues {
   };
 }
 
-export function InspectionForm({ mode, inspection }: Props) {
+export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -271,6 +276,7 @@ export function InspectionForm({ mode, inspection }: Props) {
       mode === "edit" && inspection
         ? toFormValues(inspection)
         : {
+            inspectorId: "",
             homeownerName: "",
             homeownerEmail: "",
             homeownerPhone: "",
@@ -345,6 +351,7 @@ export function InspectionForm({ mode, inspection }: Props) {
     const payload: InspectionFormValues = {
       ...values,
       isDraft,
+      inspectorId: values.inspectorId ?? "",
       homeownerEmail: values.homeownerEmail ?? "",
       homeownerPhone: values.homeownerPhone ?? "",
       city: values.city ?? "",
@@ -444,9 +451,38 @@ export function InspectionForm({ mode, inspection }: Props) {
           <Card>
             <CardHeader>
               <CardTitle>Inspection Source</CardTitle>
-              <CardDescription>Inspector and inspection event details.</CardDescription>
+              <CardDescription>Link an inspector from the roster and set the inspection date.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Inspector dropdown — spans full width */}
+              <div className="md:col-span-2">
+                <Field label="Inspector (from roster)">
+                  <Select
+                    value={watched.inspectorId ?? ""}
+                    onValueChange={(v) => {
+                      setValue("inspectorId", v ?? "");
+                      const found = inspectors.find((i) => i.id === v);
+                      if (found) {
+                        setValue("inspectorName", found.name);
+                        setValue("inspectionCompany", found.company ?? "");
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select inspector…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {inspectors.map((inspector) => (
+                        <SelectItem key={inspector.id} value={inspector.id}>
+                          {inspector.name}
+                          {inspector.company ? ` — ${inspector.company}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+              {/* Name + Company are auto-filled but remain editable */}
               <Field label="Inspector Name" error={errors.inspectorName?.message}>
                 <Input {...register("inspectorName")} placeholder="John Doe" />
               </Field>

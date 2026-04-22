@@ -39,6 +39,7 @@ function buildCreateData(values: InspectionFormValues) {
       : evaluation.status;
 
   return {
+    inspectorId: values.inspectorId || null,
     homeownerName: values.homeownerName,
     homeownerEmail: values.homeownerEmail || null,
     homeownerPhone: values.homeownerPhone || null,
@@ -147,7 +148,7 @@ export async function overrideInspectionStatus(
 export async function getInspection(id: string) {
   return db.inspection.findUnique({
     where: { id },
-    include: { photos: true, member: true, vendor: true },
+    include: { photos: true, member: true, vendor: true, inspector: true },
   });
 }
 

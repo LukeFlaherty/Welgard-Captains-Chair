@@ -1,4 +1,4 @@
-import type { Inspection, InspectionPhoto, Member, Vendor } from "@/generated/prisma";
+import type { Inspection, InspectionPhoto, Inspector, Member, Vendor } from "@/generated/prisma";
 
 export type InspectionStatus = "green" | "yellow" | "red";
 export type ConditionRating = "good" | "fair" | "poor";
@@ -8,6 +8,7 @@ export type InspectionWithRelations = Inspection & {
   photos: InspectionPhoto[];
   member: Member | null;
   vendor: Vendor | null;
+  inspector: Inspector | null;
 };
 
 export type StatusEvaluation = {
@@ -17,6 +18,7 @@ export type StatusEvaluation = {
 };
 
 export type InspectionFormValues = {
+  inspectorId: string;
   homeownerName: string;
   homeownerEmail: string;
   homeownerPhone: string;

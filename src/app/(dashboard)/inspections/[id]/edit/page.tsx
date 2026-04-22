@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { InspectionForm } from "@/components/inspections/inspection-form";
 import { getInspection } from "@/actions/inspections";
+import { listInspectorsForSelect } from "@/actions/inspectors";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Edit Inspection" };
@@ -15,11 +16,14 @@ export default async function EditInspectionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const inspection = await getInspection(id);
+  const [inspection, inspectors] = await Promise.all([
+    getInspection(id),
+    listInspectorsForSelect(),
+  ]);
   if (!inspection) notFound();
 
   return (
-    <div className="flex flex-col gap-6 p-8 max-w-5xl mx-auto w-full">
+    <div className="flex flex-col gap-6 p-4 sm:p-8 max-w-5xl mx-auto w-full">
       <div className="flex items-center gap-4">
         <Link
           href={`/inspections/${id}`}
@@ -35,7 +39,7 @@ export default async function EditInspectionPage({
           </p>
         </div>
       </div>
-      <InspectionForm mode="edit" inspection={inspection} />
+      <InspectionForm mode="edit" inspection={inspection} inspectors={inspectors} />
     </div>
   );
 }

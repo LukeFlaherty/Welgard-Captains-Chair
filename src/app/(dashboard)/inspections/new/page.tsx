@@ -3,13 +3,17 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { InspectionForm } from "@/components/inspections/inspection-form";
+import { listInspectorsForSelect } from "@/actions/inspectors";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "New Inspection" };
+export const dynamic = "force-dynamic";
 
-export default function NewInspectionPage() {
+export default async function NewInspectionPage() {
+  const inspectors = await listInspectorsForSelect();
+
   return (
-    <div className="flex flex-col gap-6 p-8 max-w-5xl mx-auto w-full">
+    <div className="flex flex-col gap-6 p-4 sm:p-8 max-w-5xl mx-auto w-full">
       <div className="flex items-center gap-4">
         <Link
           href="/inspections"
@@ -25,7 +29,7 @@ export default function NewInspectionPage() {
           </p>
         </div>
       </div>
-      <InspectionForm mode="create" />
+      <InspectionForm mode="create" inspectors={inspectors} />
     </div>
   );
 }

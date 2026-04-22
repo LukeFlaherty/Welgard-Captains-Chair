@@ -22,9 +22,9 @@ export default async function InspectionsPage() {
   );
 
   return (
-    <div className="flex flex-col gap-6 p-8 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 p-4 sm:p-8 max-w-7xl mx-auto w-full">
       {/* Page header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <ClipboardCheck className="w-5 h-5 text-muted-foreground" />
@@ -36,7 +36,7 @@ export default async function InspectionsPage() {
         </div>
         <Link
           href="/inspections/new"
-          className={cn(buttonVariants(), "gap-2")}
+          className={cn(buttonVariants(), "gap-2 shrink-0")}
         >
           <Plus className="w-4 h-4" />
           New Inspection
@@ -45,7 +45,7 @@ export default async function InspectionsPage() {
 
       {/* Summary stats */}
       {inspections.length > 0 && (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Total", value: inspections.length, color: "text-foreground" },
             { label: "Approved", value: counts.green ?? 0, color: "text-green-600" },

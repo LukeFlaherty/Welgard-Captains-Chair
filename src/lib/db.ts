@@ -25,7 +25,12 @@ function createClient(): PrismaClient {
     throw new Error("[db] DATABASE_URL is required. Add it to .env.local.");
   }
 
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  // Normalize deprecated ssl modes to verify-full to suppress pg library warning
+  const connectionString = (process.env.DATABASE_URL ?? "").replace(
+    /sslmode=(prefer|require|verify-ca)/,
+    "sslmode=verify-full"
+  );
+  const adapter = new PrismaPg({ connectionString });
   return new PrismaClient({ adapter });
 }
 

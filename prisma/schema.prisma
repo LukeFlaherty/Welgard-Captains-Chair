@@ -9,6 +9,23 @@ datasource db {
 
 // ─── Lightweight anchor entities ──────────────────────────────────────────────
 
+model Inspector {
+  id              String       @id @default(cuid())
+  name            String
+  email           String?
+  phone           String?
+  company         String?
+  licenseNumber   String?
+  licenseStates   String[]
+  certifications  String[]
+  yearsExperience Int?
+  status          String       @default("active") // active | inactive | suspended
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  inspections     Inspection[]
+}
+
 model Member {
   id             String       @id @default(cuid())
   firstName      String
@@ -40,10 +57,12 @@ model Vendor {
 model Inspection {
   id String @id @default(cuid())
 
-  memberId String?
-  vendorId String?
-  member   Member? @relation(fields: [memberId], references: [id])
-  vendor   Vendor? @relation(fields: [vendorId], references: [id])
+  memberId    String?
+  vendorId    String?
+  inspectorId String?
+  member      Member?    @relation(fields: [memberId], references: [id])
+  vendor      Vendor?    @relation(fields: [vendorId], references: [id])
+  inspector   Inspector? @relation(fields: [inspectorId], references: [id])
 
   homeownerName   String
   homeownerEmail  String?
