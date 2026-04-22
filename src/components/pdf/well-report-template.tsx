@@ -56,7 +56,7 @@ const s = StyleSheet.create({
     fontFamily: "Helvetica",
     backgroundColor: C.white,
     paddingTop: 0,
-    paddingBottom: 40,
+    paddingBottom: 60,
     paddingHorizontal: 0,
     fontSize: 10,
     color: C.text,
@@ -426,8 +426,8 @@ export function WellReportPDF({ inspection }: Props) {
       subject="Residential Well Inspection Report"
     >
       <Page size="LETTER" style={s.page}>
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <View style={s.header}>
+        {/* ── Header — page 1 only ───────────────────────────────────────── */}
+        <View style={s.header} fixed={false}>
           <View style={s.headerRow}>
             <View>
               <Text style={s.brandName}>Welgard</Text>
@@ -445,6 +445,7 @@ export function WellReportPDF({ inspection }: Props) {
         <View style={s.body}>
           {/* ── Status Banner ───────────────────────────────────────────── */}
           <View
+            wrap={false}
             style={[
               s.statusBanner,
               {
@@ -482,7 +483,7 @@ export function WellReportPDF({ inspection }: Props) {
           </View>
 
           {/* ── Member & Property ───────────────────────────────────────── */}
-          <View style={s.section}>
+          <View wrap={false} style={s.section}>
             <Text style={s.sectionTitle}>Member & Property</Text>
             <View style={s.grid2}>
               <DetailCell label="Owner Name" value={inspection.homeownerName} />
@@ -503,7 +504,7 @@ export function WellReportPDF({ inspection }: Props) {
           </View>
 
           {/* ── Inspection Source ───────────────────────────────────────── */}
-          <View style={s.section}>
+          <View wrap={false} style={s.section}>
             <Text style={s.sectionTitle}>Inspection Source</Text>
             <View style={s.grid2}>
               <DetailCell label="Inspector" value={inspection.inspectorName} />
@@ -513,7 +514,7 @@ export function WellReportPDF({ inspection }: Props) {
           </View>
 
           {/* ── Well System ─────────────────────────────────────────────── */}
-          <View style={s.section}>
+          <View wrap={false} style={s.section}>
             <Text style={s.sectionTitle}>Well System Details</Text>
             <View style={s.grid2}>
               <DetailCell label="Well Type" value={inspection.wellType} />
@@ -538,7 +539,7 @@ export function WellReportPDF({ inspection }: Props) {
           </View>
 
           {/* ── Condition Assessment ────────────────────────────────────── */}
-          <View style={s.section}>
+          <View style={s.section}> {/* intentionally wrappable — may be long */}
             <Text style={s.sectionTitle}>Condition Assessment</Text>
 
             {/* Physical ratings */}
@@ -582,7 +583,7 @@ export function WellReportPDF({ inspection }: Props) {
             inspection.requiredRepairs ||
             inspection.recommendedRepairs ||
             inspection.memberFacingSummary) && (
-            <View style={s.section}>
+            <View style={s.section}> {/* intentionally wrappable — notes can be long */}
               <Text style={s.sectionTitle}>Findings & Recommendations</Text>
 
               {inspection.memberFacingSummary && (
@@ -617,7 +618,7 @@ export function WellReportPDF({ inspection }: Props) {
 
           {/* ── Photos ──────────────────────────────────────────────────── */}
           {inspection.photos.length > 0 && (
-            <View style={s.section}>
+            <View wrap={false} style={s.section}>
               <Text style={s.sectionTitle}>Inspection Photos</Text>
               <View style={s.photoGrid}>
                 {inspection.photos.slice(0, 6).map((photo: { id: string; url: string; label: string | null }) => (
@@ -633,7 +634,7 @@ export function WellReportPDF({ inspection }: Props) {
           )}
 
           {/* ── Disclaimer ──────────────────────────────────────────────── */}
-          <View style={s.disclaimer}>
+          <View wrap={false} style={s.disclaimer}>
             <Text style={s.disclaimerTitle}>Important Disclaimer</Text>
             <Text style={s.disclaimerText}>
               This report is based solely on the visible and accessible conditions

@@ -205,7 +205,7 @@ async function main() {
     },
   });
 
-  // Inspection 4 — Draft (in progress)
+  // Inspection 4 — Draft (in progress, partial data intentional)
   await prisma.inspection.create({
     data: {
       homeownerName: "Sandra Flores",
@@ -215,8 +215,17 @@ async function main() {
       city: "Front Royal",
       state: "VA",
       zip: "22630",
+      inspectorName: vendor2.inspectorName,
+      inspectionCompany: vendor2.companyName,
       inspectionDate: new Date("2026-04-21"),
       wellType: "drilled",
+      wellDepthFt: 195,
+      pumpType: "submersible",
+      pumpAgeYears: 6,
+      pressureTankAgeYears: 6,
+      casingCondition: "good",
+      wellCapCondition: "good",
+      wiringCondition: "good",
       systemOperational: true,
       pressureOk: true,
       flowOk: true,
@@ -224,10 +233,11 @@ async function main() {
       visibleLeaks: false,
       safetyIssues: false,
       contaminationRisk: false,
+      inspectorNotes: "Inspection in progress — awaiting lab results for water quality. Visual inspection of all mechanical components completed with no concerns noted.",
       systemScore: 85,
       systemStatus: "green",
       finalStatus: "green",
-      statusRationale: [],
+      statusRationale: ["All visible conditions rated good", "Equipment within normal age range"],
       isDraft: true,
       ghlSyncStatus: "pending",
     },

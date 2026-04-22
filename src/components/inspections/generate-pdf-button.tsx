@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { FileDown, Loader2, ExternalLink } from "lucide-react";
+import { FileDown, Loader2, ExternalLink, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { savePdfUrl } from "@/actions/inspections";
 import { useRouter } from "next/navigation";
@@ -53,15 +53,25 @@ export function GeneratePdfButton({
         {loading ? "Generating..." : existingPdfUrl ? "Regenerate PDF" : "Generate PDF"}
       </Button>
       {existingPdfUrl && (
-        <a
-          href={existingPdfUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline underline-offset-2"
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-          View PDF
-        </a>
+        <>
+          <a
+            href={existingPdfUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline underline-offset-2"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            View
+          </a>
+          <a
+            href={existingPdfUrl}
+            download
+            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline underline-offset-2"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Download
+          </a>
+        </>
       )}
     </div>
   );
