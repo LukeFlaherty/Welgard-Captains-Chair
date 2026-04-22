@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
+import path from "path";
 import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { WellReportPDF } from "@/components/pdf/well-report-template";
+
+const logoPath = path.join(process.cwd(), "public", "welgard-logos", "wg-logo-white-on-blue-bg.webp");
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -24,9 +27,8 @@ export async function POST(
       return NextResponse.json({ error: "Inspection not found." }, { status: 404 });
     }
 
-    // Render PDF to buffer — suppress JSX type mismatch between react-pdf and React 19
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const element = React.createElement(WellReportPDF as any, { inspection });
+    const element = React.createElement(WellReportPDF as any, { inspection, logoPath });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const buffer = await (renderToBuffer as any)(element);
 

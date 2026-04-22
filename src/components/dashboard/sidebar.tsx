@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -9,7 +10,6 @@ import {
   Building2,
   FileText,
   Settings,
-  Droplets,
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,10 +39,14 @@ export function Sidebar() {
   return (
     <aside className="flex flex-col w-64 border-r bg-card min-h-screen shrink-0">
       {/* Brand */}
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
-          <Droplets className="w-4 h-4 text-primary-foreground" />
-        </div>
+      <div className="flex items-center gap-3 px-5 py-4 border-b">
+        <Image
+          src="/welgard-logos/wg-logo-white-on-blue-bg.webp"
+          alt="Welgard"
+          width={36}
+          height={36}
+          className="rounded-lg shrink-0"
+        />
         <div className="flex flex-col">
           <span className="text-sm font-semibold tracking-tight leading-none">Welgard</span>
           <span className="text-[10px] text-muted-foreground leading-none mt-0.5 uppercase tracking-wider">

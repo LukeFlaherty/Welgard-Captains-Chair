@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StatusBadge } from "@/components/inspections/status-badge";
 import { GeneratePdfButton } from "@/components/inspections/generate-pdf-button";
+import { PdfAlertActions } from "@/components/inspections/pdf-alert-actions";
 import { getInspection } from "@/actions/inspections";
 import { STATUS_DESCRIPTIONS } from "@/lib/rules-engine";
 import { cn } from "@/lib/utils";
@@ -191,16 +192,12 @@ export default async function InspectionViewPage({
       {/* PDF report generated alert */}
       {inspection.generatedPdfUrl && inspection.reportGeneratedAt && (
         <Alert>
-          <AlertDescription className="text-sm">
-            PDF generated {format(new Date(inspection.reportGeneratedAt), "MMM d, yyyy 'at' h:mm a")}.{" "}
-            <a
-              href={inspection.generatedPdfUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary underline-offset-2 hover:underline"
-            >
-              Download report
-            </a>
+          <AlertDescription className="text-sm flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>PDF generated {format(new Date(inspection.reportGeneratedAt), "MMM d, yyyy 'at' h:mm a")}.</span>
+            <PdfAlertActions
+              url={inspection.generatedPdfUrl}
+              reportId={inspection.reportId}
+            />
           </AlertDescription>
         </Alert>
       )}
