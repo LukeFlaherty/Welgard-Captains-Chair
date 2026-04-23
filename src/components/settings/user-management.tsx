@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { UserPlus, Trash2, Loader2, ShieldCheck, Users, Wrench } from "lucide-react";
+import { UserPlus, Trash2, Loader2, ShieldCheck, Users, Wrench, Building2, KeyRound, Copy, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,9 +36,8 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 
-import { createUser, deleteUser, updateUserRole } from "@/actions/users";
+import { createUser, deleteUser, updateUserRole, linkInspectorToUser, resetUserPassword } from "@/actions/users";
 import type { UserRow } from "@/actions/users";
 
 // ─── Role helpers ─────────────────────────────────────────────────────────────
@@ -80,18 +79,141 @@ const addUserSchema = z.object({
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum(["admin", "team_member", "vendor"]),
+  inspectorId: z.string().optional(),
 });
 
 type AddUserValues = z.infer<typeof addUserSchema>;
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Password generator ───────────────────────────────────────────────────────
+
+function generatePassword(): string {
+  const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%";
+  return Array.from({ length: 14 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
+// ─── Reset Password Dialog ────────────────────────────────────────────────────
+
+function ResetPasswordDialog({ user }: { user: UserRow }) {
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  function handleGenerate() {
+    const p = generatePassword();
+    setPassword(p);
+    setShowPassword(true);
+  }
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(password);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleReset() {
+    if (!password) return;
+    setLoading(true);
+    const result = await resetUserPassword(user.id, password);
+    setLoading(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(`Password reset for ${user.email}. Share it securely.`);
+    setPassword("");
+    setShowPassword(false);
+    setOpen(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setPassword(""); setShowPassword(false); } }}>
+      <DialogTrigger render={
+        <Button size="icon-sm" variant="ghost" title="Reset password" className="text-muted-foreground hover:text-amber-600" />
+      }>
+        <KeyRound className="w-3.5 h-3.5" />
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Reset Password</DialogTitle>
+          <DialogDescription>
+            Set a temporary password for <strong>{user.email}</strong>. They will be required to change it on next login.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-4 mt-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="tmp-password">Temporary Password</Label>
+            <div className="flex gap-2">
+              <Input
+                id="tmp-password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter or generate…"
+                className="flex-1 font-mono"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPassword((s) => !s)}
+                className="shrink-0"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Minimum 8 characters.</p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" className="gap-1.5 flex-1" onClick={handleGenerate}>
+              <RefreshCw className="w-3.5 h-3.5" />
+              Generate
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5 flex-1"
+              onClick={handleCopy}
+              disabled={!password}
+            >
+              <Copy className="w-3.5 h-3.5" />
+              {copied ? "Copied!" : "Copy"}
+            </Button>
+          </div>
+
+          <div className="rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 p-3 text-xs text-amber-800 dark:text-amber-300">
+            Share this password with the user securely (e.g. by phone). They must change it before accessing the app.
+          </div>
+        </div>
+
+        <DialogFooter showCloseButton>
+          <Button onClick={handleReset} disabled={!password || loading} className="gap-2">
+            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {loading ? "Resetting…" : "Reset Password"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type InspectorOption = { id: string; name: string; company: string | null };
 
 type Props = {
   users: UserRow[];
   currentUserId: string;
+  inspectors: InspectorOption[];
 };
 
-export function UserManagement({ users: initialUsers, currentUserId }: Props) {
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export function UserManagement({ users: initialUsers, currentUserId, inspectors }: Props) {
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -107,14 +229,19 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
   } = useForm<AddUserValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(addUserSchema) as any,
-    defaultValues: { name: "", email: "", password: "", role: "team_member" },
+    defaultValues: { name: "", email: "", password: "", role: "team_member", inspectorId: "" },
   });
 
   const watchedRole = watch("role");
+  const watchedInspectorId = watch("inspectorId");
 
   // ── Add user ────────────────────────────────────────────────────────────────
   async function onAddUser(values: AddUserValues) {
-    const result = await createUser({ ...values, name: values.name ?? "" });
+    const result = await createUser({
+      ...values,
+      name: values.name ?? "",
+      inspectorId: values.role === "vendor" ? (values.inspectorId ?? null) : null,
+    });
     if (result.error) {
       toast.error(result.error);
       return;
@@ -136,9 +263,33 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
         return;
       }
       setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
+        prev.map((u) =>
+          u.id === userId
+            ? { ...u, role: newRole, inspectorId: newRole !== "vendor" ? null : u.inspectorId, companyName: newRole !== "vendor" ? null : u.companyName }
+            : u
+        )
       );
       toast.success("Role updated.");
+    });
+  }
+
+  // ── Link inspector ───────────────────────────────────────────────────────────
+  function handleLinkInspector(userId: string, inspectorId: string | null) {
+    startTransition(async () => {
+      const result = await linkInspectorToUser(userId, inspectorId || null);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      const inspector = inspectors.find((i) => i.id === inspectorId);
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId
+            ? { ...u, inspectorId: inspectorId ?? null, companyName: inspector?.company ?? null }
+            : u
+        )
+      );
+      toast.success(inspectorId ? "Inspector linked." : "Inspector unlinked.");
     });
   }
 
@@ -166,14 +317,14 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
       {/* Role legend */}
       <div className="flex flex-wrap gap-4 p-4 border rounded-xl bg-muted/30">
         {Object.entries(ROLE_LABELS).map(([role, label]) => {
-          const Icon = ROLE_ICONS[role];
+          void label;
           return (
             <div key={role} className="flex flex-col gap-1">
               <RoleBadge role={role} />
               <p className="text-xs text-muted-foreground ml-1">
                 {role === "admin" && "Full access + user management"}
                 {role === "team_member" && "Full dashboard, no user settings"}
-                {role === "vendor" && "Inspections only (submit & view)"}
+                {role === "vendor" && "Inspections only — filtered to their company"}
               </p>
             </div>
           );
@@ -194,14 +345,11 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
             <DialogHeader>
               <DialogTitle>Add a new user</DialogTitle>
               <DialogDescription>
-                Create an account and share the credentials with the team member.
+                Create an account and share the credentials with the team member or vendor.
               </DialogDescription>
             </DialogHeader>
 
-            <form
-              onSubmit={handleSubmit(onAddUser)}
-              className="flex flex-col gap-4 mt-2"
-            >
+            <form onSubmit={handleSubmit(onAddUser)} className="flex flex-col gap-4 mt-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="name">Full Name</Label>
                 <Input id="name" placeholder="Jane Smith" {...register("name")} />
@@ -211,12 +359,7 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
                 <Label htmlFor="email">
                   Email <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="jane@welgard.com"
-                  {...register("email")}
-                />
+                <Input id="email" type="email" placeholder="jane@welgard.com" {...register("email")} />
                 {errors.email && (
                   <p className="text-xs text-destructive">{errors.email.message}</p>
                 )}
@@ -226,12 +369,7 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
                 <Label htmlFor="password">
                   Temporary Password <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Min. 8 characters"
-                  {...register("password")}
-                />
+                <Input id="password" type="password" placeholder="Min. 8 characters" {...register("password")} />
                 {errors.password && (
                   <p className="text-xs text-destructive">{errors.password.message}</p>
                 )}
@@ -241,9 +379,10 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
                 <Label>Role <span className="text-destructive">*</span></Label>
                 <Select
                   value={watchedRole}
-                  onValueChange={(v) =>
-                    setValue("role", v as AddUserValues["role"])
-                  }
+                  onValueChange={(v) => {
+                    setValue("role", v as AddUserValues["role"]);
+                    setValue("inspectorId", "");
+                  }}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select role…" />
@@ -255,6 +394,42 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Inspector picker — only shown for vendor role */}
+              {watchedRole === "vendor" && (
+                <div className="flex flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 p-3">
+                  <Label className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-amber-600" />
+                    Link to Inspector
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Select the inspector from the roster this vendor belongs to. Their company will be used to filter which inspections they can see.
+                  </p>
+                  <Select
+                    value={watchedInspectorId ?? ""}
+                    onValueChange={(v) => setValue("inspectorId", v ?? undefined)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select inspector…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {inspectors.map((i) => (
+                        <SelectItem key={i.id} value={i.id}>
+                          {i.name}{i.company ? ` — ${i.company}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {watchedInspectorId && (
+                    <p className="text-xs text-amber-700">
+                      Company:{" "}
+                      <strong>
+                        {inspectors.find((i) => i.id === watchedInspectorId)?.company ?? "—"}
+                      </strong>
+                    </p>
+                  )}
+                </div>
+              )}
 
               <DialogFooter showCloseButton>
                 <Button type="submit" disabled={isSubmitting} className="gap-2">
@@ -274,6 +449,7 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
             <TableRow className="bg-muted/50">
               <TableHead>User</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Company</TableHead>
               <TableHead>Joined</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -310,10 +486,8 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
                         onValueChange={(v) => v && handleRoleChange(user.id, v)}
                         disabled={isPending}
                       >
-                        <SelectTrigger className="w-40 h-7 text-xs">
-                          <span className="flex-1 text-left">
-                            {ROLE_LABELS[user.role] ?? user.role}
-                          </span>
+                        <SelectTrigger className="w-36 h-7 text-xs">
+                          <span className="flex-1 text-left">{ROLE_LABELS[user.role] ?? user.role}</span>
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="admin">Admin</SelectItem>
@@ -321,6 +495,45 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
                           <SelectItem value="vendor">Vendor</SelectItem>
                         </SelectContent>
                       </Select>
+                    )}
+                  </TableCell>
+
+                  {/* Company — only relevant for vendor users */}
+                  <TableCell>
+                    {user.role === "vendor" ? (
+                      <div className="flex flex-col gap-1">
+                        {user.companyName && (
+                          <span className="text-xs font-medium flex items-center gap-1">
+                            <Building2 className="w-3 h-3 text-muted-foreground" />
+                            {user.companyName}
+                          </span>
+                        )}
+                        {!isSelf && (
+                          <Select
+                            value={user.inspectorId ?? ""}
+                            onValueChange={(v) => handleLinkInspector(user.id, v || null)}
+                            disabled={isPending}
+                          >
+                            <SelectTrigger className="w-44 h-7 text-xs">
+                              <span className="flex-1 text-left truncate text-muted-foreground">
+                                {user.inspectorId
+                                  ? (inspectors.find((i) => i.id === user.inspectorId)?.name ?? "Linked")
+                                  : "Link inspector…"}
+                              </span>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">No link</SelectItem>
+                              {inspectors.map((i) => (
+                                <SelectItem key={i.id} value={i.id}>
+                                  {i.name}{i.company ? ` — ${i.company}` : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </TableCell>
 
@@ -356,15 +569,18 @@ export function UserManagement({ users: initialUsers, currentUserId }: Props) {
                         </Button>
                       </div>
                     ) : (
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        onClick={() => handleDelete(user.id)}
-                        className="text-muted-foreground hover:text-destructive"
-                        title="Remove user"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <ResetPasswordDialog user={user} />
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          onClick={() => handleDelete(user.id)}
+                          className="text-muted-foreground hover:text-destructive"
+                          title="Remove user"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>

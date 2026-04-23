@@ -4,6 +4,7 @@ import { Plus, ClipboardCheck } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { InspectionTable } from "@/components/inspections/inspection-table";
 import { listInspections } from "@/actions/inspections";
+import { auth } from "@/auth";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Inspections" };
@@ -11,7 +12,10 @@ export const metadata: Metadata = { title: "Inspections" };
 export const dynamic = "force-dynamic";
 
 export default async function InspectionsPage() {
-  const inspections = await listInspections();
+  const session = await auth();
+  const companyFilter =
+    session?.user?.role === "vendor" ? (session.user.companyName ?? undefined) : undefined;
+  const inspections = await listInspections(companyFilter);
 
   const counts = inspections.reduce(
     (acc: Record<string, number>, i: { finalStatus: string }) => {

@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/inspections/status-badge";
 import { GeneratePdfButton } from "@/components/inspections/generate-pdf-button";
 import { PdfHistoryTimeline } from "@/components/inspections/pdf-history-timeline";
 import { getInspection } from "@/actions/inspections";
+import { auth } from "@/auth";
 import { STATUS_DESCRIPTIONS } from "@/lib/rules-engine";
 import { cn } from "@/lib/utils";
 
@@ -77,8 +78,18 @@ export default async function InspectionViewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const inspection = await getInspection(id);
+  const [inspection, session] = await Promise.all([getInspection(id), auth()]);
   if (!inspection) notFound();
+
+  // Vendor users can only view inspections from their company
+  if (session?.user?.role === "vendor") {
+    const company = session.user.companyName;
+    const matchesCompany =
+      company &&
+      (inspection.inspectionCompany === company ||
+        inspection.inspector?.company === company);
+    if (!matchesCompany) notFound();
+  }
 
   const isOverridden = inspection.finalStatus !== inspection.systemStatus;
 

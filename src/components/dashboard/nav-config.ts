@@ -6,6 +6,7 @@ import {
   Building2,
   FileText,
   Settings,
+  UserCircle,
 } from "lucide-react";
 import type { ElementType } from "react";
 
@@ -54,4 +55,5 @@ export const navItems: NavItem[] = [
     roles: ["admin", "team_member"],
   },
   { label: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
+  { label: "Account", href: "/account", icon: UserCircle },
 ];

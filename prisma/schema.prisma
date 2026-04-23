@@ -10,13 +10,16 @@ datasource db {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String   @unique
-  password  String
-  role      String   @default("admin")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String     @id @default(cuid())
+  name        String?
+  email       String     @unique
+  password    String
+  role               String     @default("admin") // admin | team_member | vendor
+  mustChangePassword Boolean    @default(false)
+  inspectorId        String?
+  inspector   Inspector? @relation(fields: [inspectorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 // ─── Lightweight anchor entities ──────────────────────────────────────────────
@@ -36,6 +39,7 @@ model Inspector {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   inspections     Inspection[]
+  users           User[]
 }
 
 model Member {

@@ -159,8 +159,16 @@ export async function getInspection(id: string) {
   });
 }
 
-export async function listInspections() {
+export async function listInspections(companyFilter?: string | null) {
   return db.inspection.findMany({
+    where: companyFilter
+      ? {
+          OR: [
+            { inspectionCompany: companyFilter },
+            { inspector: { company: companyFilter } },
+          ],
+        }
+      : undefined,
     orderBy: { createdAt: "desc" },
     include: { photos: { take: 1 } },
   });

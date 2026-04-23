@@ -21,14 +21,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await db.user.findUnique({
           where: { email: parsed.data.email },
-          select: { id: true, email: true, name: true, password: true, role: true },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            password: true,
+            role: true,
+            mustChangePassword: true,
+            inspectorId: true,
+            inspector: { select: { company: true } },
+          },
         });
         if (!user) return null;
 
         const passwordMatch = await bcrypt.compare(parsed.data.password, user.password);
         if (!passwordMatch) return null;
 
-        return { id: user.id, email: user.email ?? "", name: user.name, role: user.role };
+        return {
+          id: user.id,
+          email: user.email ?? "",
+          name: user.name,
+          role: user.role,
+          mustChangePassword: user.mustChangePassword,
+          inspectorId: user.inspectorId ?? null,
+          companyName: user.inspector?.company ?? null,
+        };
       },
     }),
   ],
@@ -40,6 +57,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = user.role ?? "vendor";
+        token.mustChangePassword = user.mustChangePassword ?? false;
+        token.inspectorId = user.inspectorId ?? null;
+        token.companyName = user.companyName ?? null;
       }
       return token;
     },

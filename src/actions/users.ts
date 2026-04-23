@@ -10,6 +10,8 @@ export type UserRow = {
   name: string | null;
   email: string;
   role: string;
+  inspectorId: string | null;
+  companyName: string | null;
   createdAt: Date;
 };
 
@@ -23,10 +25,27 @@ async function requireAdmin() {
 
 export async function listUsers(): Promise<UserRow[]> {
   await requireAdmin();
-  return db.user.findMany({
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+  const users = await db.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      inspectorId: true,
+      inspector: { select: { company: true } },
+      createdAt: true,
+    },
     orderBy: { createdAt: "asc" },
   });
+  return users.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    inspectorId: u.inspectorId,
+    companyName: u.inspector?.company ?? null,
+    createdAt: u.createdAt,
+  }));
 }
 
 export async function createUser(data: {
@@ -34,6 +53,7 @@ export async function createUser(data: {
   email: string;
   password: string;
   role: string;
+  inspectorId?: string | null;
 }): Promise<{ user?: UserRow; error?: string }> {
   await requireAdmin();
 
@@ -42,12 +62,36 @@ export async function createUser(data: {
 
   const hashed = await bcrypt.hash(data.password, 12);
   const user = await db.user.create({
-    data: { name: data.name || null, email: data.email, password: hashed, role: data.role },
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    data: {
+      name: data.name || null,
+      email: data.email,
+      password: hashed,
+      role: data.role,
+      inspectorId: data.role === "vendor" ? (data.inspectorId ?? null) : null,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      inspectorId: true,
+      inspector: { select: { company: true } },
+      createdAt: true,
+    },
   });
 
   revalidatePath("/settings/users");
-  return { user };
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      inspectorId: user.inspectorId,
+      companyName: user.inspector?.company ?? null,
+      createdAt: user.createdAt,
+    },
+  };
 }
 
 export async function updateUserRole(
@@ -60,8 +104,96 @@ export async function updateUserRole(
     return { error: "You cannot change your own role." };
   }
 
-  await db.user.update({ where: { id: userId }, data: { role } });
+  // Clear inspector link when demoting from vendor
+  await db.user.update({
+    where: { id: userId },
+    data: { role, inspectorId: role === "vendor" ? undefined : null },
+  });
   revalidatePath("/settings/users");
+  return {};
+}
+
+export async function linkInspectorToUser(
+  userId: string,
+  inspectorId: string | null
+): Promise<{ companyName?: string | null; error?: string }> {
+  await requireAdmin();
+
+  const updated = await db.user.update({
+    where: { id: userId },
+    data: { inspectorId },
+    select: { inspector: { select: { company: true } } },
+  });
+
+  revalidatePath("/settings/users");
+  return { companyName: updated.inspector?.company ?? null };
+}
+
+// Admin resets another user's password and marks it as temporary
+export async function resetUserPassword(
+  userId: string,
+  newPassword: string
+): Promise<{ error?: string }> {
+  const session = await requireAdmin();
+
+  if (session.user.id === userId) {
+    return { error: "Use the account page to change your own password." };
+  }
+  if (newPassword.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+
+  const hashed = await bcrypt.hash(newPassword, 12);
+  await db.user.update({
+    where: { id: userId },
+    data: { password: hashed, mustChangePassword: true },
+  });
+  revalidatePath("/settings/users");
+  return {};
+}
+
+// User changes their own password (requires current password verification)
+export async function changeSelfPassword(data: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<{ error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Not authenticated." };
+  if (data.newPassword.length < 8) {
+    return { error: "New password must be at least 8 characters." };
+  }
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { password: true },
+  });
+  if (!user) return { error: "User not found." };
+
+  const match = await bcrypt.compare(data.currentPassword, user.password);
+  if (!match) return { error: "Current password is incorrect." };
+
+  const hashed = await bcrypt.hash(data.newPassword, 12);
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { password: hashed, mustChangePassword: false },
+  });
+  return {};
+}
+
+// Clears mustChangePassword after a forced change (no current password needed — admin already reset it)
+export async function completePasswordReset(newPassword: string): Promise<{ error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Not authenticated." };
+  if (!session.user.mustChangePassword) return { error: "No password reset required." };
+  if (newPassword.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+
+  const hashed = await bcrypt.hash(newPassword, 12);
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { password: hashed, mustChangePassword: false },
+  });
   return {};
 }
 
