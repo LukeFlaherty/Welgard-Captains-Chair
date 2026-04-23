@@ -31,6 +31,7 @@ type InspectionRow = Pick<
   | "isDraft"
   | "generatedPdfUrl"
   | "createdAt"
+  | "activity"
 >;
 
 export function InspectionTable({ rows }: { rows: InspectionRow[] }) {
@@ -57,7 +58,8 @@ export function InspectionTable({ rows }: { rows: InspectionRow[] }) {
               <TableHead>Property</TableHead>
               <TableHead>Inspection Date</TableHead>
               <TableHead>Inspector</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Activity</TableHead>
+              <TableHead>Approval</TableHead>
               <TableHead>Report</TableHead>
               <TableHead className="text-right">Edit</TableHead>
             </TableRow>
@@ -89,6 +91,9 @@ export function InspectionTable({ rows }: { rows: InspectionRow[] }) {
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {row.inspectorName ?? "—"}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {row.activity ?? "—"}
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={row.finalStatus} size="sm" />

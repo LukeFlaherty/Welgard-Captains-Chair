@@ -16,12 +16,12 @@ export function MobileHeader() {
 
   return (
     <>
-      <header className="flex md:hidden items-center justify-between h-20 px-4 border-b bg-primary shrink-0">
+      <header className="flex md:hidden items-center justify-between h-32 px-4 border-b bg-primary shrink-0">
         <Image
           src="/welgard-logos/wg-logo-white-on-blue-bg.webp"
           alt="Welgard"
-          width={60}
-          height={60}
+          width={120}
+          height={120}
           className="rounded-lg"
         />
         <button

@@ -72,6 +72,7 @@ const schema = z.object({
   ghlContactId: z.string().optional(),
   ghlOpportunityId: z.string().optional(),
   ghlLocationId: z.string().optional(),
+  activity: z.string().optional(),
   isDraft: z.boolean(),
 });
 
@@ -173,7 +174,7 @@ function ScorePreview({ values }: { values: Partial<FormValues> }) {
     <Card className="border-dashed">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">Live Status Preview</CardTitle>
+          <CardTitle className="text-sm font-medium">Live Approval Preview</CardTitle>
           <StatusBadge status={result.status} size="sm" />
         </div>
         <CardDescription className="text-xs">
@@ -246,6 +247,7 @@ function toFormValues(inspection: InspectionWithRelations): FormValues {
     ghlContactId: inspection.ghlContactId ?? "",
     ghlOpportunityId: inspection.ghlOpportunityId ?? "",
     ghlLocationId: inspection.ghlLocationId ?? "",
+    activity: inspection.activity ?? "",
     isDraft: inspection.isDraft,
   };
 }
@@ -313,6 +315,7 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
             ghlContactId: "",
             ghlOpportunityId: "",
             ghlLocationId: "",
+            activity: "",
             isDraft: true,
           },
   });
@@ -384,6 +387,7 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
       ghlContactId: values.ghlContactId ?? "",
       ghlOpportunityId: values.ghlOpportunityId ?? "",
       ghlLocationId: values.ghlLocationId ?? "",
+      activity: values.activity ?? "",
     };
 
     const result =
@@ -404,15 +408,17 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
   return (
     <form onSubmit={handleSubmit((v: FormValues) => onSubmit(v, false))} className="flex flex-col gap-6">
       <Tabs defaultValue="member" className="w-full">
-        <TabsList className="flex-wrap h-auto gap-1 mb-2">
-          <TabsTrigger value="member">Member & Property</TabsTrigger>
-          <TabsTrigger value="source">Inspection Source</TabsTrigger>
-          <TabsTrigger value="well">Well System</TabsTrigger>
-          <TabsTrigger value="conditions">Conditions</TabsTrigger>
-          <TabsTrigger value="notes">Notes</TabsTrigger>
-          <TabsTrigger value="photos">Photos</TabsTrigger>
-          <TabsTrigger value="review">Review & Status</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4 pb-1 md:mx-0 md:px-0">
+          <TabsList className="flex-nowrap h-auto gap-1 mb-1 w-max md:w-fit">
+            <TabsTrigger value="member">Member & Property</TabsTrigger>
+            <TabsTrigger value="source">Inspection Source</TabsTrigger>
+            <TabsTrigger value="well">Well System</TabsTrigger>
+            <TabsTrigger value="conditions">Conditions</TabsTrigger>
+            <TabsTrigger value="notes">Notes</TabsTrigger>
+            <TabsTrigger value="photos">Photos</TabsTrigger>
+            <TabsTrigger value="review">Review & Status</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* ── Tab 1: Member & Property ──────────────────────────────────────── */}
         <TabsContent value="member" className="mt-4">
@@ -475,10 +481,19 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                       }
                     }}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select inspector…" />
+                    <SelectTrigger className="w-full">
+                      <span className={`flex-1 text-left truncate ${!watched.inspectorId ? "text-muted-foreground" : ""}`}>
+                        {watched.inspectorId
+                          ? (() => {
+                              const found = inspectors.find((i) => i.id === watched.inspectorId);
+                              return found
+                                ? `${found.name}${found.company ? ` — ${found.company}` : ""}`
+                                : "Select inspector…";
+                            })()
+                          : "Select inspector…"}
+                      </span>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="min-w-80">
                       {inspectors.map((inspector) => (
                         <SelectItem key={inspector.id} value={inspector.id}>
                           {inspector.name}
@@ -489,12 +504,12 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                   </Select>
                 </Field>
               </div>
-              {/* Name + Company are auto-filled but remain editable */}
+              {/* Name + Company are auto-filled from roster selection — read-only */}
               <Field label="Inspector Name" error={errors.inspectorName?.message}>
-                <Input {...register("inspectorName")} placeholder="John Doe" />
+                <Input {...register("inspectorName")} placeholder="Auto-filled from selection" readOnly className="bg-muted/50 cursor-default" />
               </Field>
               <Field label="Inspection Company" error={errors.inspectionCompany?.message}>
-                <Input {...register("inspectionCompany")} placeholder="ABC Well Services" />
+                <Input {...register("inspectionCompany")} placeholder="Auto-filled from selection" readOnly className="bg-muted/50 cursor-default" />
               </Field>
               <Field label="Inspection Date" error={errors.inspectionDate?.message} required>
                 <Input {...register("inspectionDate")} type="date" />
@@ -804,13 +819,46 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
 
             <Card>
               <CardHeader>
-                <CardTitle>Status Override</CardTitle>
+                <CardTitle>Activity</CardTitle>
                 <CardDescription>
-                  Override the system-computed status. Provide a reason when overriding.
+                  Classify the operational activity type for this inspection record.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Field label="Activity" error={errors.activity?.message}>
+                  <Select
+                    value={watched.activity ?? ""}
+                    onValueChange={(v) => setValue("activity", v ?? "")}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select activity…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Activation">Activation</SelectItem>
+                      <SelectItem value="Prospect">Prospect</SelectItem>
+                      <SelectItem value="Deactivation">Deactivation</SelectItem>
+                      <SelectItem value="Ineligible">Ineligible</SelectItem>
+                      <SelectItem value="New Member">New Member</SelectItem>
+                      <SelectItem value="Termination">Termination</SelectItem>
+                      <SelectItem value="Renew-Avail">Renew-Avail</SelectItem>
+                      <SelectItem value="Conversion Possible">Conversion Possible</SelectItem>
+                      <SelectItem value="Conversion Actual">Conversion Actual</SelectItem>
+                      <SelectItem value="Conversion Rate">Conversion Rate</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Approval Override</CardTitle>
+                <CardDescription>
+                  Override the system-computed approval. Provide a reason when overriding.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                <Field label="Final Status Override" error={errors.finalStatus?.message}>
+                <Field label="Final Approval" error={errors.finalStatus?.message}>
                   <Select
                     value={watched.finalStatus ?? ""}
                     onValueChange={(v) =>

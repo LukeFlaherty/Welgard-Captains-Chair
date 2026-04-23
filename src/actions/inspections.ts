@@ -81,6 +81,7 @@ function buildCreateData(values: InspectionFormValues) {
     ghlContactId: values.ghlContactId || null,
     ghlOpportunityId: values.ghlOpportunityId || null,
     ghlLocationId: values.ghlLocationId || null,
+    activity: values.activity || null,
     isDraft: values.isDraft,
     reportId: generateReportId(),
   };

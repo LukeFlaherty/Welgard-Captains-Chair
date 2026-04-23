@@ -115,6 +115,8 @@ model Inspection {
   ghlSyncStatus    String   @default("pending")
   lastSyncedAt     DateTime?
 
+  activity  String?
+
   isDraft   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

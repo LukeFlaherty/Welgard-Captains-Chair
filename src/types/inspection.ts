@@ -54,5 +54,6 @@ export type InspectionFormValues = {
   ghlContactId: string;
   ghlOpportunityId: string;
   ghlLocationId: string;
+  activity: string;
   isDraft: boolean;
 };

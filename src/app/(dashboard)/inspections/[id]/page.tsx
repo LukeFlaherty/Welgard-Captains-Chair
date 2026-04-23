@@ -247,6 +247,7 @@ export default async function InspectionViewPage({
               label="Date"
               value={format(new Date(inspection.inspectionDate), "MMM d, yyyy")}
             />
+            <DetailRow label="Activity" value={inspection.activity} />
           </CardContent>
         </Card>
 
