@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft, Pencil, Mail, Phone, Building2, Award, MapPin } from "lucide-react";
+import { ArrowLeft, Pencil, Mail, Phone, Building2, Award, MapPin, Printer } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,13 +100,24 @@ export default async function InspectorViewPage({
             </p>
           </div>
         </div>
-        <Link
-          href={`/inspectors/${id}/edit`}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
-        >
-          <Pencil className="w-3.5 h-3.5" />
-          Edit
-        </Link>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/api/inspections/form-pdf?inspectorId=${id}`}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+          >
+            <Printer className="w-3.5 h-3.5" />
+            Print Form
+          </a>
+          <Link
+            href={`/inspectors/${id}/edit`}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit
+          </Link>
+        </div>
       </div>
 
       {/* Stats row */}

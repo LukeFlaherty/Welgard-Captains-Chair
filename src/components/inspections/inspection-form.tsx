@@ -31,6 +31,14 @@ import { evaluateInspection } from "@/lib/rules-engine";
 import { createInspection, updateInspection } from "@/actions/inspections";
 import type { InspectionFormValues, ConditionRating, InspectionStatus } from "@/types/inspection";
 import type { InspectionWithRelations } from "@/types/inspection";
+import {
+  WELL_TYPE_OPTIONS,
+  PUMP_TYPE_OPTIONS,
+  CONDITION_OPTIONS,
+  ACTIVITY_OPTIONS,
+  FINAL_STATUS_OPTIONS,
+  PHOTO_LABELS,
+} from "@/config/inspection-fields";
 
 // ─── Zod schema ───────────────────────────────────────────────────────────────
 
@@ -142,9 +150,9 @@ function ConditionSelect({
         <SelectValue placeholder="Select condition" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="good">Good</SelectItem>
-        <SelectItem value="fair">Fair</SelectItem>
-        <SelectItem value="poor">Poor</SelectItem>
+        {CONDITION_OPTIONS.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+        ))}
       </SelectContent>
     </Select>
   );
@@ -535,12 +543,9 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="drilled">Drilled</SelectItem>
-                    <SelectItem value="dug">Dug</SelectItem>
-                    <SelectItem value="bored">Bored</SelectItem>
-                    <SelectItem value="driven">Driven Point</SelectItem>
-                    <SelectItem value="artesian">Artesian</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {WELL_TYPE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -562,10 +567,9 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="submersible">Submersible</SelectItem>
-                    <SelectItem value="jet">Jet Pump</SelectItem>
-                    <SelectItem value="hand">Hand Pump</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {PUMP_TYPE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -747,14 +751,7 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-6">
-              {(
-                [
-                  { label: "property_front", display: "Property Front Photo" },
-                  { label: "well_head", display: "Well Head Photo" },
-                  { label: "pressure_system", display: "Pressure System Photo" },
-                  { label: "additional", display: "Additional Photo" },
-                ] as const
-              ).map(({ label, display }) => {
+              {PHOTO_LABELS.map(({ key: label, label: display }) => {
                 const existing = uploadedPhotos.find((p) => p.label === label);
                 return (
                   <div key={label} className="flex flex-col gap-2">
@@ -834,16 +831,9 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                       <SelectValue placeholder="Select activity…" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Activation">Activation</SelectItem>
-                      <SelectItem value="Prospect">Prospect</SelectItem>
-                      <SelectItem value="Deactivation">Deactivation</SelectItem>
-                      <SelectItem value="Ineligible">Ineligible</SelectItem>
-                      <SelectItem value="New Member">New Member</SelectItem>
-                      <SelectItem value="Termination">Termination</SelectItem>
-                      <SelectItem value="Renew-Avail">Renew-Avail</SelectItem>
-                      <SelectItem value="Conversion Possible">Conversion Possible</SelectItem>
-                      <SelectItem value="Conversion Actual">Conversion Actual</SelectItem>
-                      <SelectItem value="Conversion Rate">Conversion Rate</SelectItem>
+                      {ACTIVITY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </Field>
@@ -869,9 +859,9 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                       <SelectValue placeholder="Use system-computed (recommended)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="green">Green — Approved</SelectItem>
-                      <SelectItem value="yellow">Yellow — Conditional</SelectItem>
-                      <SelectItem value="red">Red — Not Approved</SelectItem>
+                      {FINAL_STATUS_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </Field>
