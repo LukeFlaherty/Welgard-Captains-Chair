@@ -20,7 +20,7 @@ export async function POST(
   try {
     const inspection = await db.inspection.findUnique({
       where: { id },
-      include: { photos: true },
+      include: { photos: true, yieldTests: { orderBy: { testNumber: "asc" } } },
     });
 
     if (!inspection) {

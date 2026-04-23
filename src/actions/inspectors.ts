@@ -72,7 +72,7 @@ export async function getInspector(id: string) {
           state: true,
           inspectionDate: true,
           finalStatus: true,
-          systemScore: true,
+          membershipTier: true,
           isDraft: true,
           reportId: true,
         },

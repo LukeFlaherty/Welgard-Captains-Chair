@@ -301,7 +301,7 @@ export default async function InspectorViewPage({
                         Date
                       </th>
                       <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Score
+                        Tier
                       </th>
                       <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         Status
@@ -336,7 +336,7 @@ export default async function InspectorViewPage({
                           {format(new Date(insp.inspectionDate), "MMM d, yyyy")}
                         </td>
                         <td className="px-4 py-3 font-medium">
-                          {insp.systemScore ?? "—"}
+                          {insp.membershipTier ? insp.membershipTier.charAt(0).toUpperCase() + insp.membershipTier.slice(1) : "—"}
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge status={insp.finalStatus} size="sm" />

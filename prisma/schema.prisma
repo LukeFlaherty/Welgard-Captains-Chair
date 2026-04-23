@@ -10,16 +10,16 @@ datasource db {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 model User {
-  id          String     @id @default(cuid())
-  name        String?
-  email       String     @unique
-  password    String
+  id                 String     @id @default(cuid())
+  name               String?
+  email              String     @unique
+  password           String
   role               String     @default("admin") // admin | team_member | vendor
   mustChangePassword Boolean    @default(false)
   inspectorId        String?
-  inspector   Inspector? @relation(fields: [inspectorId], references: [id], onDelete: SetNull)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  inspector          Inspector? @relation(fields: [inspectorId], references: [id], onDelete: SetNull)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 }
 
 // ─── Lightweight anchor entities ──────────────────────────────────────────────
@@ -68,11 +68,12 @@ model Vendor {
   inspections    Inspection[]
 }
 
-// ─── Primary V1 entity ────────────────────────────────────────────────────────
+// ─── Primary entity ───────────────────────────────────────────────────────────
 
 model Inspection {
   id String @id @default(cuid())
 
+  // Relations
   memberId    String?
   vendorId    String?
   inspectorId String?
@@ -80,6 +81,7 @@ model Inspection {
   vendor      Vendor?    @relation(fields: [vendorId], references: [id])
   inspector   Inspector? @relation(fields: [inspectorId], references: [id])
 
+  // Member & Property
   homeownerName   String
   homeownerEmail  String?
   homeownerPhone  String?
@@ -88,57 +90,101 @@ model Inspection {
   state           String?
   zip             String?
 
+  // Inspection Source
   inspectorName     String?
   inspectionCompany String?
   inspectionDate    DateTime
 
-  wellType             String?
-  wellDepthFt          Float?
-  pumpType             String?
-  pumpAgeYears         Int?
-  pressureTankAgeYears Int?
+  // Well System — basic info
+  wellType         String?  // drilled | bored | hand_dug | stick | artesian | driven_point | other
+  wellDepthFt      Float?
+  wellDepthUnknown Boolean  @default(false)
+  pumpType         String?  // submersible | jet | hand | other
 
-  casingCondition   String?
-  wellCapCondition  String?
-  wiringCondition   String?
-  visibleLeaks      Boolean @default(false)
-  safetyIssues      Boolean @default(false)
-  contaminationRisk Boolean @default(false)
-  systemOperational Boolean @default(true)
-  pressureOk        Boolean @default(true)
-  flowOk            Boolean @default(true)
-  siteClearanceOk   Boolean @default(true)
+  // External Equipment inputs
+  wellObstructions   String?  // none | ornamental | vegetation | debris | structural | other
+  wellCap            String?  // sealed_contamination_resistant | bored_well | not_applicable_buried | secured_bolted | unsecured_open | missing_damaged
+  casingHeightInches Float?
 
+  // Internal Equipment inputs
+  amperageReading        Float?
+  tankCondition          String?  // good | fair | poor | failed
+  controlBoxCondition    String?  // ok | not_present | damaged
+  pressureSwitch         String?  // visibly_present_intact | not_present | damaged
+  pressureGauge          String?  // visibly_present_intact | not_present | damaged
+  constantPressureSystem Boolean  @default(false)
+
+  // Cycle Test inputs
+  secondsToHighReading Float?
+  secondsToLowReading  Float?
+
+  // Computed / stored values (recalculated on every save)
+  cycleTime            Float?
+  wellYieldGpm         Float?
+  totalGallons         Float?
+  avgMinutesToReach350 Float?
+  gallonsPerDay        Int?
+
+  // Category approval statuses
+  externalEquipmentStatus String?  // pass | needs_attention
+  internalEquipmentStatus String?  // pass | needs_attention
+  cycleTimeStatus         String?  // pass | needs_attention
+  wellYieldStatus         String?  // pass | needs_attention
+
+  // Eligibility & tier
+  wellCalculationVersion Int      @default(2)
+  eligibleForSuperior    Boolean?
+  membershipTier         String?  // standard | superior | premium
+
+  // Notes & Findings
   inspectorNotes        String?
   internalReviewerNotes String?
   requiredRepairs       String?
   recommendedRepairs    String?
   memberFacingSummary   String?
 
-  systemScore     Int?
-  systemStatus    String   @default("green")
-  finalStatus     String   @default("green")
+  // Review & Status
+  activity        String?
+  systemStatus    String   @default("green")  // auto-computed tier color
+  finalStatus     String   @default("green")  // may be manually overridden
   overrideReason  String?
   statusRationale String[]
 
-  reportId          String?
-  generatedPdfUrl   String?
-  reportGeneratedAt DateTime?
-
+  // GHL integration
   ghlContactId     String?
   ghlOpportunityId String?
   ghlLocationId    String?
   ghlSyncStatus    String   @default("pending")
   lastSyncedAt     DateTime?
 
-  activity  String?
+  // PDF / Report
+  reportId          String?
+  generatedPdfUrl   String?
+  reportGeneratedAt DateTime?
 
+  // Meta
   isDraft   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Child relations
+  yieldTests YieldTest[]
   photos     InspectionPhoto[]
   pdfHistory PdfGeneration[]
+}
+
+// Ordered yield test measurements (up to 6 per inspection)
+model YieldTest {
+  id                  String     @id @default(cuid())
+  inspectionId        String
+  inspection          Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  testNumber          Int        // 1–6
+  startTime           String?    // "HH:MM" format (same-day test, time math only)
+  totalGallons        Float?
+  secondsToFillBucket Float?
+  createdAt           DateTime   @default(now())
+
+  @@unique([inspectionId, testNumber])
 }
 
 model PdfGeneration {
