@@ -11,6 +11,7 @@ export type UserRow = {
   email: string;
   role: string;
   inspectorId: string | null;
+  vendorId: string | null;
   companyName: string | null;
   createdAt: Date;
 };
@@ -33,6 +34,8 @@ export async function listUsers(): Promise<UserRow[]> {
       role: true,
       inspectorId: true,
       inspector: { select: { company: true } },
+      vendorId: true,
+      vendor: { select: { companyName: true } },
       createdAt: true,
     },
     orderBy: { createdAt: "asc" },
@@ -43,9 +46,18 @@ export async function listUsers(): Promise<UserRow[]> {
     email: u.email,
     role: u.role,
     inspectorId: u.inspectorId,
-    companyName: u.inspector?.company ?? null,
+    vendorId: u.vendorId,
+    companyName: u.vendor?.companyName ?? u.inspector?.company ?? null,
     createdAt: u.createdAt,
   }));
+}
+
+export async function listVendorsForSelect() {
+  await requireAdmin();
+  return db.vendor.findMany({
+    orderBy: { companyName: "asc" },
+    select: { id: true, companyName: true },
+  });
 }
 
 export async function createUser(data: {
@@ -53,7 +65,7 @@ export async function createUser(data: {
   email: string;
   password: string;
   role: string;
-  inspectorId?: string | null;
+  vendorId?: string | null;
 }): Promise<{ user?: UserRow; error?: string }> {
   await requireAdmin();
 
@@ -67,7 +79,7 @@ export async function createUser(data: {
       email: data.email,
       password: hashed,
       role: data.role,
-      inspectorId: data.role === "vendor" ? (data.inspectorId ?? null) : null,
+      vendorId: data.role === "vendor" ? (data.vendorId ?? null) : null,
     },
     select: {
       id: true,
@@ -75,6 +87,8 @@ export async function createUser(data: {
       email: true,
       role: true,
       inspectorId: true,
+      vendorId: true,
+      vendor: { select: { companyName: true } },
       inspector: { select: { company: true } },
       createdAt: true,
     },
@@ -88,7 +102,8 @@ export async function createUser(data: {
       email: user.email,
       role: user.role,
       inspectorId: user.inspectorId,
-      companyName: user.inspector?.company ?? null,
+      vendorId: user.vendorId,
+      companyName: user.vendor?.companyName ?? user.inspector?.company ?? null,
       createdAt: user.createdAt,
     },
   };
@@ -104,29 +119,29 @@ export async function updateUserRole(
     return { error: "You cannot change your own role." };
   }
 
-  // Clear inspector link when demoting from vendor
+  // Clear vendor link when changing away from vendor role
   await db.user.update({
     where: { id: userId },
-    data: { role, inspectorId: role === "vendor" ? undefined : null },
+    data: { role, vendorId: role === "vendor" ? undefined : null },
   });
   revalidatePath("/settings/users");
   return {};
 }
 
-export async function linkInspectorToUser(
+export async function linkVendorToUser(
   userId: string,
-  inspectorId: string | null
+  vendorId: string | null
 ): Promise<{ companyName?: string | null; error?: string }> {
   await requireAdmin();
 
   const updated = await db.user.update({
     where: { id: userId },
-    data: { inspectorId },
-    select: { inspector: { select: { company: true } } },
+    data: { vendorId },
+    select: { vendor: { select: { companyName: true } } },
   });
 
   revalidatePath("/settings/users");
-  return { companyName: updated.inspector?.company ?? null };
+  return { companyName: updated.vendor?.companyName ?? null };
 }
 
 // Admin resets another user's password and marks it as temporary

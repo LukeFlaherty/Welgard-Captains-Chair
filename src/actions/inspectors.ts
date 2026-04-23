@@ -14,6 +14,7 @@ export type InspectorFormValues = {
   yearsExperience: string;
   status: string;
   notes: string;
+  vendorId?: string | null;
 };
 
 function parseArray(val: string): string[] {
@@ -35,6 +36,7 @@ function buildData(values: InspectorFormValues) {
     yearsExperience: values.yearsExperience ? parseInt(values.yearsExperience, 10) : null,
     status: values.status || "active",
     notes: values.notes || null,
+    vendorId: values.vendorId ?? null,
   };
 }
 
@@ -46,8 +48,9 @@ export async function listInspectorsForSelect() {
   });
 }
 
-export async function listInspectors() {
+export async function listInspectors(vendorId?: string | null) {
   return db.inspector.findMany({
+    where: vendorId ? { vendorId } : undefined,
     orderBy: { name: "asc" },
     include: {
       _count: { select: { inspections: true } },

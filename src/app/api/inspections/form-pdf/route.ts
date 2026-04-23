@@ -5,7 +5,7 @@ import path from "path";
 import { db } from "@/lib/db";
 import { BlankInspectionFormPDF } from "@/components/pdf/blank-form-template";
 
-const logoPath = path.join(process.cwd(), "public", "welgard-logos", "wg-logo-white-on-blue-bg.webp");
+const logoPath = path.join(process.cwd(), "public", "welgard-logos", "wg-logo-white-on-blue-bg.png");
 
 export const runtime = "nodejs";
 export const maxDuration = 30;

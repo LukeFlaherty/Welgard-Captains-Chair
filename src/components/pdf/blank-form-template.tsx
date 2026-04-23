@@ -65,8 +65,8 @@ const s = StyleSheet.create({
     backgroundColor: C.brandDark,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    marginBottom: 12,
-    marginTop: 16,
+    marginBottom: 8,
+    marginTop: 10,
   },
   sectionHeaderText: { color: C.white, fontSize: 9, fontFamily: "Helvetica-Bold", textTransform: "uppercase", letterSpacing: 0.8 },
   fieldGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
@@ -116,7 +116,7 @@ const s = StyleSheet.create({
 
 function WriteField({ label, width, unit }: { label: string; width: string | number; unit?: string }) {
   return (
-    <View style={[s.fieldWrap, { width: width as number }]}>
+    <View wrap={false} style={[s.fieldWrap, { width: width as number }]}>
       <Text style={s.fieldLabel}>{label}</Text>
       <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 4 }}>
         <View style={[s.writeLine, { flex: 1 }]} />
@@ -128,7 +128,7 @@ function WriteField({ label, width, unit }: { label: string; width: string | num
 
 function SelectField({ label, options }: { label: string; options: { value: string; label: string }[] }) {
   return (
-    <View style={[s.fieldWrap, { width: "100%" }]}>
+    <View wrap={false} style={[s.fieldWrap, { width: "100%" }]}>
       <Text style={s.fieldLabel}>{label}</Text>
       <View style={s.circleOneRow}>
         <Text style={s.circleOneLabel}>Circle one:</Text>
@@ -144,7 +144,7 @@ function SelectField({ label, options }: { label: string; options: { value: stri
 
 function BoolField({ label }: { label: string }) {
   return (
-    <View style={s.booleanRow}>
+    <View wrap={false} style={s.booleanRow}>
       <Text style={s.booleanLabel}>{label}</Text>
       <View style={s.booleanOptions}>
         <View style={s.booleanOption}><Text style={s.booleanOptionText}>Yes</Text></View>

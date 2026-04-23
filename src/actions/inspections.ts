@@ -216,13 +216,13 @@ export async function getInspection(id: string) {
   });
 }
 
-export async function listInspections(companyFilter?: string | null) {
+export async function listInspections(vendorId?: string | null) {
   return db.inspection.findMany({
-    where: companyFilter
+    where: vendorId
       ? {
           OR: [
-            { inspectionCompany: companyFilter },
-            { inspector: { company: companyFilter } },
+            { vendorId },
+            { inspector: { vendorId } },
           ],
         }
       : undefined,

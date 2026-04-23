@@ -37,7 +37,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import { createUser, deleteUser, updateUserRole, linkInspectorToUser, resetUserPassword } from "@/actions/users";
+import { createUser, deleteUser, updateUserRole, linkVendorToUser, resetUserPassword } from "@/actions/users";
 import type { UserRow } from "@/actions/users";
 
 // ─── Role helpers ─────────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ const addUserSchema = z.object({
   email: z.string().email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum(["admin", "team_member", "vendor"]),
-  inspectorId: z.string().optional(),
+  vendorId: z.string().optional(),
 });
 
 type AddUserValues = z.infer<typeof addUserSchema>;
@@ -203,17 +203,17 @@ function ResetPasswordDialog({ user }: { user: UserRow }) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type InspectorOption = { id: string; name: string; company: string | null };
+type VendorOption = { id: string; companyName: string };
 
 type Props = {
   users: UserRow[];
   currentUserId: string;
-  inspectors: InspectorOption[];
+  vendors: VendorOption[];
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function UserManagement({ users: initialUsers, currentUserId, inspectors }: Props) {
+export function UserManagement({ users: initialUsers, currentUserId, vendors }: Props) {
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -229,18 +229,18 @@ export function UserManagement({ users: initialUsers, currentUserId, inspectors 
   } = useForm<AddUserValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(addUserSchema) as any,
-    defaultValues: { name: "", email: "", password: "", role: "team_member", inspectorId: "" },
+    defaultValues: { name: "", email: "", password: "", role: "team_member", vendorId: "" },
   });
 
   const watchedRole = watch("role");
-  const watchedInspectorId = watch("inspectorId");
+  const watchedVendorId = watch("vendorId");
 
   // ── Add user ────────────────────────────────────────────────────────────────
   async function onAddUser(values: AddUserValues) {
     const result = await createUser({
       ...values,
       name: values.name ?? "",
-      inspectorId: values.role === "vendor" ? (values.inspectorId ?? null) : null,
+      vendorId: values.role === "vendor" ? (values.vendorId ?? null) : null,
     });
     if (result.error) {
       toast.error(result.error);
@@ -265,7 +265,7 @@ export function UserManagement({ users: initialUsers, currentUserId, inspectors 
       setUsers((prev) =>
         prev.map((u) =>
           u.id === userId
-            ? { ...u, role: newRole, inspectorId: newRole !== "vendor" ? null : u.inspectorId, companyName: newRole !== "vendor" ? null : u.companyName }
+            ? { ...u, role: newRole, vendorId: newRole !== "vendor" ? null : u.vendorId, companyName: newRole !== "vendor" ? null : u.companyName }
             : u
         )
       );
@@ -273,23 +273,23 @@ export function UserManagement({ users: initialUsers, currentUserId, inspectors 
     });
   }
 
-  // ── Link inspector ───────────────────────────────────────────────────────────
-  function handleLinkInspector(userId: string, inspectorId: string | null) {
+  // ── Link vendor company ──────────────────────────────────────────────────────
+  function handleLinkVendor(userId: string, vendorId: string | null) {
     startTransition(async () => {
-      const result = await linkInspectorToUser(userId, inspectorId || null);
+      const result = await linkVendorToUser(userId, vendorId || null);
       if (result.error) {
         toast.error(result.error);
         return;
       }
-      const inspector = inspectors.find((i) => i.id === inspectorId);
+      const vendor = vendors.find((v) => v.id === vendorId);
       setUsers((prev) =>
         prev.map((u) =>
           u.id === userId
-            ? { ...u, inspectorId: inspectorId ?? null, companyName: inspector?.company ?? null }
+            ? { ...u, vendorId: vendorId ?? null, companyName: vendor?.companyName ?? null }
             : u
         )
       );
-      toast.success(inspectorId ? "Inspector linked." : "Inspector unlinked.");
+      toast.success(vendorId ? "Company linked." : "Company unlinked.");
     });
   }
 
@@ -381,7 +381,7 @@ export function UserManagement({ users: initialUsers, currentUserId, inspectors 
                   value={watchedRole}
                   onValueChange={(v) => {
                     setValue("role", v as AddUserValues["role"]);
-                    setValue("inspectorId", "");
+                    setValue("vendorId", "");
                   }}
                 >
                   <SelectTrigger className="w-full">
@@ -390,42 +390,42 @@ export function UserManagement({ users: initialUsers, currentUserId, inspectors 
                   <SelectContent>
                     <SelectItem value="admin">Admin — full access</SelectItem>
                     <SelectItem value="team_member">Team Member — dashboard access</SelectItem>
-                    <SelectItem value="vendor">Vendor — inspections only</SelectItem>
+                    <SelectItem value="vendor">Vendor — inspections + inspectors (own company)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Inspector picker — only shown for vendor role */}
+              {/* Vendor company picker — only shown for vendor role */}
               {watchedRole === "vendor" && (
                 <div className="flex flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 p-3">
                   <Label className="flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5 text-amber-600" />
-                    Link to Inspector
+                    Link to Inspection Company
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Select the inspector from the roster this vendor belongs to. Their company will be used to filter which inspections they can see.
+                    Select the vendor company this user represents. They will only see inspections and inspectors belonging to this company.
                   </p>
                   <Select
-                    value={watchedInspectorId ?? ""}
-                    onValueChange={(v) => setValue("inspectorId", v ?? undefined)}
+                    value={watchedVendorId ?? ""}
+                    onValueChange={(v) => setValue("vendorId", v ?? undefined)}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select inspector…" />
+                      <SelectValue placeholder="Select company…" />
                     </SelectTrigger>
                     <SelectContent>
-                      {inspectors.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name}{i.company ? ` — ${i.company}` : ""}
+                      {vendors.length === 0 && (
+                        <SelectItem value="" disabled>No vendor companies yet</SelectItem>
+                      )}
+                      {vendors.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.companyName}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {watchedInspectorId && (
+                  {!watchedVendorId && (
                     <p className="text-xs text-amber-700">
-                      Company:{" "}
-                      <strong>
-                        {inspectors.find((i) => i.id === watchedInspectorId)?.company ?? "—"}
-                      </strong>
+                      No company linked — the user can log in but will see no data until linked.
                     </p>
                   )}
                 </div>
@@ -510,22 +510,22 @@ export function UserManagement({ users: initialUsers, currentUserId, inspectors 
                         )}
                         {!isSelf && (
                           <Select
-                            value={user.inspectorId ?? ""}
-                            onValueChange={(v) => handleLinkInspector(user.id, v || null)}
+                            value={user.vendorId ?? ""}
+                            onValueChange={(v) => handleLinkVendor(user.id, v || null)}
                             disabled={isPending}
                           >
                             <SelectTrigger className="w-44 h-7 text-xs">
                               <span className="flex-1 text-left truncate text-muted-foreground">
-                                {user.inspectorId
-                                  ? (inspectors.find((i) => i.id === user.inspectorId)?.name ?? "Linked")
-                                  : "Link inspector…"}
+                                {user.vendorId
+                                  ? (vendors.find((v) => v.id === user.vendorId)?.companyName ?? "Linked")
+                                  : "Link company…"}
                               </span>
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="">No link</SelectItem>
-                              {inspectors.map((i) => (
-                                <SelectItem key={i.id} value={i.id}>
-                                  {i.name}{i.company ? ` — ${i.company}` : ""}
+                              {vendors.map((v) => (
+                                <SelectItem key={v.id} value={v.id}>
+                                  {v.companyName}
                                 </SelectItem>
                               ))}
                             </SelectContent>

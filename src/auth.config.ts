@@ -1,7 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 
 // Routes vendors can access
-const VENDOR_ALLOWED = ["/inspections", "/account"];
+const VENDOR_ALLOWED = ["/inspections", "/inspectors", "/account"];
 
 export const authConfig = {
   pages: {
@@ -14,6 +14,7 @@ export const authConfig = {
         session.user.role = token.role ?? "vendor";
         session.user.mustChangePassword = token.mustChangePassword ?? false;
         session.user.inspectorId = token.inspectorId ?? null;
+        session.user.vendorId = token.vendorId ?? null;
         session.user.companyName = token.companyName ?? null;
       }
       return session;

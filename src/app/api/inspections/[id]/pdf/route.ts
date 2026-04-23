@@ -6,7 +6,7 @@ import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { WellReportPDF } from "@/components/pdf/well-report-template";
 
-const logoPath = path.join(process.cwd(), "public", "welgard-logos", "wg-logo-white-on-blue-bg.webp");
+const logoPath = path.join(process.cwd(), "public", "welgard-logos", "wg-logo-white-on-blue-bg.png");
 
 export const runtime = "nodejs";
 export const maxDuration = 30;

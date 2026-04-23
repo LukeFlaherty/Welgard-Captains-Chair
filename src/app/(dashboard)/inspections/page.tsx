@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus, ClipboardCheck } from "lucide-react";
+import { Plus, ClipboardCheck, Printer } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { InspectionTable } from "@/components/inspections/inspection-table";
 import { listInspections } from "@/actions/inspections";
@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
 
 export default async function InspectionsPage() {
   const session = await auth();
-  const companyFilter =
-    session?.user?.role === "vendor" ? (session.user.companyName ?? undefined) : undefined;
-  const inspections = await listInspections(companyFilter);
+  const role = session?.user?.role ?? "vendor";
+  const vendorId = role === "vendor" ? (session?.user?.vendorId ?? null) : null;
+  const inspections = await listInspections(vendorId);
 
   const counts = inspections.reduce(
     (acc: Record<string, number>, i: { finalStatus: string }) => {
@@ -24,6 +24,9 @@ export default async function InspectionsPage() {
     },
     {} as Record<string, number>
   );
+
+  // Vendors with no linked company cannot create inspections yet
+  const canCreate = role !== "vendor" || !!vendorId;
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-8 max-w-7xl mx-auto w-full">
@@ -35,17 +38,39 @@ export default async function InspectionsPage() {
             <h1 className="text-2xl font-bold tracking-tight">Inspections</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Review well inspection records and generate member reports.
+            {role === "vendor"
+              ? "Inspections submitted by your company."
+              : "Review well inspection records and generate member reports."}
           </p>
         </div>
-        <Link
-          href="/inspections/new"
-          className={cn(buttonVariants(), "gap-2 shrink-0")}
-        >
-          <Plus className="w-4 h-4" />
-          New Inspection
-        </Link>
+        <div className="flex items-center gap-2">
+          <a
+            href="/api/inspections/form-pdf"
+            target="_blank"
+            rel="noreferrer"
+            className={cn(buttonVariants({ variant: "outline" }), "gap-2 shrink-0")}
+          >
+            <Printer className="w-4 h-4" />
+            Print Form
+          </a>
+          {canCreate && (
+            <Link
+              href="/inspections/new"
+              className={cn(buttonVariants(), "gap-2 shrink-0")}
+            >
+              <Plus className="w-4 h-4" />
+              New Inspection
+            </Link>
+          )}
+        </div>
       </div>
+
+      {/* Vendor with no company linked */}
+      {role === "vendor" && !vendorId && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/10 p-5 text-sm text-amber-800 dark:text-amber-300">
+          <strong>Your account isn&apos;t linked to a company yet.</strong> Contact Welgard to have your account connected to your inspection company before you can view or submit inspections.
+        </div>
+      )}
 
       {/* Summary stats */}
       {inspections.length > 0 && (

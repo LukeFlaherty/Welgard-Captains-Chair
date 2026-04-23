@@ -31,7 +31,7 @@ export const navItems: NavItem[] = [
     label: "Inspectors",
     href: "/inspectors",
     icon: UserCheck,
-    roles: ["admin", "team_member"],
+    roles: ["admin", "team_member", "vendor"],
   },
   {
     label: "Members",

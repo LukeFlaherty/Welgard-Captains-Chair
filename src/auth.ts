@@ -30,6 +30,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             mustChangePassword: true,
             inspectorId: true,
             inspector: { select: { company: true } },
+            vendorId: true,
+            vendor: { select: { companyName: true } },
           },
         });
         if (!user) return null;
@@ -44,7 +46,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           mustChangePassword: user.mustChangePassword,
           inspectorId: user.inspectorId ?? null,
-          companyName: user.inspector?.company ?? null,
+          vendorId: user.vendorId ?? null,
+          companyName: user.vendor?.companyName ?? user.inspector?.company ?? null,
         };
       },
     }),
@@ -59,6 +62,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role ?? "vendor";
         token.mustChangePassword = user.mustChangePassword ?? false;
         token.inspectorId = user.inspectorId ?? null;
+        token.vendorId = user.vendorId ?? null;
         token.companyName = user.companyName ?? null;
       }
       return token;

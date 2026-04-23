@@ -4,13 +4,18 @@ import { Plus, UserCheck } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { InspectorTable } from "@/components/inspectors/inspector-table";
 import { listInspectors } from "@/actions/inspectors";
+import { auth } from "@/auth";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Inspectors" };
 export const dynamic = "force-dynamic";
 
 export default async function InspectorsPage() {
-  const inspectors = await listInspectors();
+  const session = await auth();
+  const role = session?.user?.role ?? "vendor";
+  const vendorId = role === "vendor" ? (session?.user?.vendorId ?? null) : null;
+
+  const inspectors = await listInspectors(vendorId);
 
   const totals = inspectors.reduce(
     (acc, i) => {
@@ -35,16 +40,20 @@ export default async function InspectorsPage() {
             <h1 className="text-2xl font-bold tracking-tight">Inspectors</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Manage inspectors, track performance, and review submission history.
+            {role === "vendor"
+              ? "Inspectors registered under your company."
+              : "Manage inspectors, track performance, and review submission history."}
           </p>
         </div>
-        <Link
-          href="/inspectors/new"
-          className={cn(buttonVariants(), "gap-2 shrink-0")}
-        >
-          <Plus className="w-4 h-4" />
-          New Inspector
-        </Link>
+        {role !== "vendor" && (
+          <Link
+            href="/inspectors/new"
+            className={cn(buttonVariants(), "gap-2 shrink-0")}
+          >
+            <Plus className="w-4 h-4" />
+            New Inspector
+          </Link>
+        )}
       </div>
 
       {/* Stats */}
@@ -64,6 +73,15 @@ export default async function InspectorsPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {inspectors.length === 0 && role === "vendor" && !vendorId && (
+        <div className="flex flex-col items-center justify-center py-24 text-center border rounded-xl bg-muted/30">
+          <p className="text-lg font-medium">No company linked</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Contact Welgard to have your account linked to your inspection company.
+          </p>
         </div>
       )}
 
