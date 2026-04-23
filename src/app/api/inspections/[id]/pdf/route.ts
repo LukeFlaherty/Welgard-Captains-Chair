@@ -40,14 +40,18 @@ export async function POST(
       addRandomSuffix: false,
     });
 
-    // Update record with PDF URL
-    await db.inspection.update({
-      where: { id },
-      data: {
-        generatedPdfUrl: blob.url,
-        reportGeneratedAt: new Date(),
-      },
-    });
+    const now = new Date();
+
+    // Update inspection's latest PDF pointer and append a history record
+    await db.$transaction([
+      db.inspection.update({
+        where: { id },
+        data: { generatedPdfUrl: blob.url, reportGeneratedAt: now },
+      }),
+      db.pdfGeneration.create({
+        data: { inspectionId: id, url: blob.url, generatedAt: now },
+      }),
+    ]);
 
     return NextResponse.json({ url: blob.url });
   } catch (err) {

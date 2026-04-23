@@ -7,10 +7,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StatusBadge } from "@/components/inspections/status-badge";
 import { GeneratePdfButton } from "@/components/inspections/generate-pdf-button";
-import { PdfAlertActions } from "@/components/inspections/pdf-alert-actions";
+import { PdfHistoryTimeline } from "@/components/inspections/pdf-history-timeline";
 import { getInspection } from "@/actions/inspections";
 import { STATUS_DESCRIPTIONS } from "@/lib/rules-engine";
 import { cn } from "@/lib/utils";
@@ -189,17 +188,16 @@ export default async function InspectionViewPage({
         </CardContent>
       </Card>
 
-      {/* PDF report generated alert */}
-      {inspection.generatedPdfUrl && inspection.reportGeneratedAt && (
-        <Alert>
-          <AlertDescription className="text-sm flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span>PDF generated {format(new Date(inspection.reportGeneratedAt), "MMM d, yyyy 'at' h:mm a")}.</span>
-            <PdfAlertActions
-              url={inspection.generatedPdfUrl}
+      {/* PDF history timeline */}
+      {inspection.pdfHistory.length > 0 && (
+        <Card>
+          <CardContent className="pt-5">
+            <PdfHistoryTimeline
+              entries={inspection.pdfHistory}
               reportId={inspection.reportId}
             />
-          </AlertDescription>
-        </Alert>
+          </CardContent>
+        </Card>
       )}
 
       {/* Details grid */}

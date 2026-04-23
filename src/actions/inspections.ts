@@ -149,7 +149,13 @@ export async function overrideInspectionStatus(
 export async function getInspection(id: string) {
   return db.inspection.findUnique({
     where: { id },
-    include: { photos: true, member: true, vendor: true, inspector: true },
+    include: {
+      photos: true,
+      member: true,
+      vendor: true,
+      inspector: true,
+      pdfHistory: { orderBy: { generatedAt: "asc" } },
+    },
   });
 }
 

@@ -133,7 +133,16 @@ model Inspection {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  photos InspectionPhoto[]
+  photos     InspectionPhoto[]
+  pdfHistory PdfGeneration[]
+}
+
+model PdfGeneration {
+  id           String     @id @default(cuid())
+  inspectionId String
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  url          String
+  generatedAt  DateTime   @default(now())
 }
 
 model InspectionPhoto {
