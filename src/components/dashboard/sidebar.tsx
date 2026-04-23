@@ -3,14 +3,19 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { navItems } from "./nav-config";
 
-export function Sidebar() {
+export function Sidebar({ role }: { role: string }) {
   const pathname = usePathname();
+
+  const visibleItems = navItems.filter(
+    (item) => !item.roles || item.roles.includes(role)
+  );
 
   return (
     <aside className="hidden md:flex flex-col w-64 border-r bg-card min-h-screen shrink-0">
@@ -28,7 +33,7 @@ export function Sidebar() {
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-3">
         <nav className="flex flex-col gap-0.5">
-          {navItems.map((item) => {
+          {visibleItems.map((item) => {
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + "/");
 
@@ -64,8 +69,15 @@ export function Sidebar() {
       </ScrollArea>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t">
-        <p className="text-[10px] text-muted-foreground">
+      <div className="px-3 py-3 border-t flex flex-col gap-1">
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-full text-left"
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
+          <span>Sign out</span>
+        </button>
+        <p className="text-[10px] text-muted-foreground px-3">
           Internal Ops Dashboard · v1
         </p>
       </div>

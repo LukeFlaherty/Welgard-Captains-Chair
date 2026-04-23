@@ -7,6 +7,18 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // ─── Lightweight anchor entities ──────────────────────────────────────────────
 
 model Inspector {

@@ -4,15 +4,20 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, ChevronRight } from "lucide-react";
+import { Menu, ChevronRight, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { navItems } from "./nav-config";
 
-export function MobileHeader() {
+export function MobileHeader({ role }: { role: string }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+
+  const visibleItems = navItems.filter(
+    (item) => !item.roles || item.roles.includes(role)
+  );
 
   return (
     <>
@@ -48,7 +53,7 @@ export function MobileHeader() {
 
           {/* Navigation */}
           <nav className="flex flex-col gap-0.5 px-3 py-3 flex-1">
-            {navItems.map((item) => {
+            {visibleItems.map((item) => {
               const isActive =
                 pathname === item.href || pathname.startsWith(item.href + "/");
 
@@ -89,8 +94,15 @@ export function MobileHeader() {
           </nav>
 
           {/* Footer */}
-          <div className="px-4 py-3 border-t mt-auto">
-            <p className="text-[10px] text-muted-foreground">
+          <div className="px-3 py-3 border-t mt-auto flex flex-col gap-1">
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-full text-left"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              <span>Sign out</span>
+            </button>
+            <p className="text-[10px] text-muted-foreground px-3">
               Internal Ops Dashboard · v1
             </p>
           </div>
