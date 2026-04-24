@@ -104,13 +104,24 @@ model Inspection {
   inspector   Inspector? @relation(fields: [inspectorId], references: [id])
 
   // Member & Property
-  homeownerName   String
-  homeownerEmail  String?
-  homeownerPhone  String?
-  propertyAddress String
-  city            String?
-  state           String?
-  zip             String?
+  homeownerName    String
+  homeownerEmail   String?
+  homeownerEmail2  String?
+  homeownerPhone   String?
+  propertyAddress  String
+  propertyAddress2 String?
+  city             String?
+  county           String?
+  state            String?
+  zip              String?
+
+  // Realtor
+  realtorInvolved     Boolean @default(false)
+  requestedByRealtor  Boolean @default(false)
+  realtorName         String?
+  realtorEmail        String?
+  realtorPhone        String?
+  realtorPhoneType    String?
 
   // Inspection Source
   inspectorName     String?

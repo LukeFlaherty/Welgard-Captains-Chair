@@ -26,11 +26,22 @@ export type InspectionFormValues = {
   // Member & Property
   homeownerName: string;
   homeownerEmail: string;
+  homeownerEmail2: string;
   homeownerPhone: string;
   propertyAddress: string;
+  propertyAddress2: string;
   city: string;
+  county: string;
   state: string;
   zip: string;
+
+  // Realtor
+  realtorInvolved: boolean;
+  requestedByRealtor: boolean;
+  realtorName: string;
+  realtorEmail: string;
+  realtorPhone: string;
+  realtorPhoneType: string;
 
   // Inspection Source
   inspectorName: string;
