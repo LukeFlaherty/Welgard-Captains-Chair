@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Settings, Users } from "lucide-react";
+import { Settings, Users, BookOpen } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -35,6 +35,26 @@ export default function SettingsPage() {
               className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
             >
               Manage Users
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:border-primary/40 transition-colors">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-muted-foreground" />
+              <CardTitle className="text-base">Inspection Logic</CardTitle>
+            </div>
+            <CardDescription>
+              Understand what makes an inspection pass or fail and how membership tiers are determined.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href="/settings/inspection-logic"
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              View Reference
             </Link>
           </CardContent>
         </Card>
