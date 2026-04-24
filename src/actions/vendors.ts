@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import {
+  getActor, logActivity, diffObjects, fieldLabel,
+  VENDOR_SKIP_FIELDS,
+} from "@/lib/activity";
 
 async function requireAdminOrTeamMember() {
   const session = await auth();
@@ -126,20 +130,31 @@ export async function createVendor(
   try {
     const vendor = await db.vendor.create({
       data: {
-        companyName: values.companyName,
-        vendorType: values.vendorType || null,
-        rating: values.rating || null,
+        companyName:    values.companyName,
+        vendorType:     values.vendorType || null,
+        rating:         values.rating || null,
         primaryContact: values.primaryContact || null,
-        email: values.email || null,
-        phone: values.phone || null,
-        phone2: values.phone2 || null,
-        licenseNumber: values.licenseNumber || null,
-        notes: values.notes || null,
-        websiteUrl: values.websiteUrl || null,
+        email:          values.email || null,
+        phone:          values.phone || null,
+        phone2:         values.phone2 || null,
+        licenseNumber:  values.licenseNumber || null,
+        notes:          values.notes || null,
+        websiteUrl:     values.websiteUrl || null,
         ghlReferenceId: values.ghlReferenceId || null,
       },
     });
     revalidatePath("/vendors");
+
+    const actor = await getActor();
+    await logActivity({
+      actor,
+      entityType: "vendor",
+      entityId: vendor.id,
+      entityLabel: vendor.companyName,
+      action: "created",
+      description: `Added vendor company "${vendor.companyName}"`,
+    });
+
     return { id: vendor.id };
   } catch (err) {
     console.error("[createVendor]", err);
@@ -153,24 +168,48 @@ export async function updateVendor(
 ): Promise<{ id: string } | { error: string }> {
   await requireAdminOrTeamMember();
   try {
-    const vendor = await db.vendor.update({
-      where: { id },
-      data: {
-        companyName: values.companyName,
-        vendorType: values.vendorType || null,
-        rating: values.rating || null,
-        primaryContact: values.primaryContact || null,
-        email: values.email || null,
-        phone: values.phone || null,
-        phone2: values.phone2 || null,
-        licenseNumber: values.licenseNumber || null,
-        notes: values.notes || null,
-        websiteUrl: values.websiteUrl || null,
-        ghlReferenceId: values.ghlReferenceId || null,
-      },
-    });
+    const existing = await db.vendor.findUnique({ where: { id } });
+    const data = {
+      companyName:    values.companyName,
+      vendorType:     values.vendorType || null,
+      rating:         values.rating || null,
+      primaryContact: values.primaryContact || null,
+      email:          values.email || null,
+      phone:          values.phone || null,
+      phone2:         values.phone2 || null,
+      licenseNumber:  values.licenseNumber || null,
+      notes:          values.notes || null,
+      websiteUrl:     values.websiteUrl || null,
+      ghlReferenceId: values.ghlReferenceId || null,
+    };
+    const vendor = await db.vendor.update({ where: { id }, data });
     revalidatePath("/vendors");
     revalidatePath(`/vendors/${id}`);
+
+    if (existing) {
+      const actor = await getActor();
+      const changes = diffObjects(
+        existing as Record<string, unknown>,
+        data as Record<string, unknown>,
+        VENDOR_SKIP_FIELDS
+      );
+      await Promise.all(
+        changes.map((c) =>
+          logActivity({
+            actor,
+            entityType: "vendor",
+            entityId: id,
+            entityLabel: existing.companyName,
+            action: "updated",
+            field: c.field,
+            oldValue: c.oldValue || null,
+            newValue: c.newValue || null,
+            description: `Updated ${fieldLabel(c.field)} on vendor "${existing.companyName}"`,
+          })
+        )
+      );
+    }
+
     return { id: vendor.id };
   } catch (err) {
     console.error("[updateVendor]", err);
@@ -181,11 +220,33 @@ export async function updateVendor(
 export async function deleteVendor(id: string): Promise<{ error?: string }> {
   await requireAdminOrTeamMember();
   try {
+    const existing = await db.vendor.findUnique({
+      where: { id },
+      select: { companyName: true },
+    });
     await db.vendor.delete({ where: { id } });
     revalidatePath("/vendors");
+
+    const actor = await getActor();
+    await logActivity({
+      actor,
+      entityType: "vendor",
+      entityId: id,
+      entityLabel: existing?.companyName ?? id,
+      action: "deleted",
+      description: `Deleted vendor company "${existing?.companyName ?? id}"`,
+    });
+
     return {};
   } catch (err) {
     console.error("[deleteVendor]", err);
     return { error: "Failed to delete vendor company. It may have linked records." };
   }
+}
+
+export async function listVendorsForSelect() {
+  return db.vendor.findMany({
+    orderBy: { companyName: "asc" },
+    select: { id: true, companyName: true },
+  });
 }

@@ -4,6 +4,7 @@ import React from "react";
 import path from "path";
 import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
+import { getActor, logActivity } from "@/lib/activity";
 import { WellReportPDF } from "@/components/pdf/well-report-template";
 
 const logoPath = path.join(process.cwd(), "public", "welgard-logos", "wg-logo-white-on-blue-bg.png");
@@ -32,7 +33,6 @@ export async function POST(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const buffer = await (renderToBuffer as any)(element);
 
-    // Upload to Vercel Blob
     const filename = `reports/${inspection.reportId ?? id}-${Date.now()}.pdf`;
     const blob = await put(filename, buffer, {
       access: "public",
@@ -42,7 +42,6 @@ export async function POST(
 
     const now = new Date();
 
-    // Update inspection's latest PDF pointer and append a history record
     await db.$transaction([
       db.inspection.update({
         where: { id },
@@ -52,6 +51,17 @@ export async function POST(
         data: { inspectionId: id, url: blob.url, generatedAt: now },
       }),
     ]);
+
+    const actor = await getActor();
+    const label = `${inspection.homeownerName} – ${inspection.propertyAddress}`;
+    await logActivity({
+      actor,
+      entityType: "pdf",
+      entityId: id,
+      entityLabel: label,
+      action: "generated",
+      description: `Generated PDF report for ${label}`,
+    });
 
     return NextResponse.json({ url: blob.url });
   } catch (err) {

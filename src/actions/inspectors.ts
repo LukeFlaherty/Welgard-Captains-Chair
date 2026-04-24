@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import {
+  getActor, logActivity, diffObjects, fieldLabel,
+  INSPECTOR_SKIP_FIELDS,
+} from "@/lib/activity";
 
 export type InspectorFormValues = {
   name: string;
@@ -26,17 +30,17 @@ function parseArray(val: string): string[] {
 
 function buildData(values: InspectorFormValues) {
   return {
-    name: values.name,
-    email: values.email || null,
-    phone: values.phone || null,
-    company: values.company || null,
-    licenseNumber: values.licenseNumber || null,
-    licenseStates: parseArray(values.licenseStates),
+    name:           values.name,
+    email:          values.email || null,
+    phone:          values.phone || null,
+    company:        values.company || null,
+    licenseNumber:  values.licenseNumber || null,
+    licenseStates:  parseArray(values.licenseStates),
     certifications: parseArray(values.certifications),
     yearsExperience: values.yearsExperience ? parseInt(values.yearsExperience, 10) : null,
-    status: values.status || "active",
-    notes: values.notes || null,
-    vendorId: values.vendorId ?? null,
+    status:         values.status || "active",
+    notes:          values.notes || null,
+    vendorId:       values.vendorId ?? null,
   };
 }
 
@@ -131,6 +135,17 @@ export async function createInspector(
   try {
     const inspector = await db.inspector.create({ data: buildData(values) });
     revalidatePath("/inspectors");
+
+    const actor = await getActor();
+    await logActivity({
+      actor,
+      entityType: "inspector",
+      entityId: inspector.id,
+      entityLabel: inspector.name,
+      action: "created",
+      description: `Added inspector "${inspector.name}"${inspector.company ? ` (${inspector.company})` : ""}`,
+    });
+
     return { id: inspector.id };
   } catch (err) {
     console.error("[createInspector]", err);
@@ -143,12 +158,36 @@ export async function updateInspector(
   values: InspectorFormValues
 ): Promise<{ id: string } | { error: string }> {
   try {
-    const inspector = await db.inspector.update({
-      where: { id },
-      data: buildData(values),
-    });
+    const existing = await db.inspector.findUnique({ where: { id } });
+    const data = buildData(values);
+    const inspector = await db.inspector.update({ where: { id }, data });
     revalidatePath("/inspectors");
     revalidatePath(`/inspectors/${id}`);
+
+    if (existing) {
+      const actor = await getActor();
+      const changes = diffObjects(
+        existing as Record<string, unknown>,
+        data as Record<string, unknown>,
+        INSPECTOR_SKIP_FIELDS
+      );
+      await Promise.all(
+        changes.map((c) =>
+          logActivity({
+            actor,
+            entityType: "inspector",
+            entityId: id,
+            entityLabel: existing.name,
+            action: "updated",
+            field: c.field,
+            oldValue: c.oldValue || null,
+            newValue: c.newValue || null,
+            description: `Updated ${fieldLabel(c.field)} on inspector "${existing.name}"`,
+          })
+        )
+      );
+    }
+
     return { id: inspector.id };
   } catch (err) {
     console.error("[updateInspector]", err);

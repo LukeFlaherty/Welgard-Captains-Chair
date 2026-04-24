@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { calculateInspection } from "@/lib/inspection-calc";
 import { generateReportId } from "@/lib/report-id";
+import {
+  getActor, logActivity, diffObjects, fieldLabel,
+  INSPECTION_SKIP_FIELDS,
+} from "@/lib/activity";
 import type { InspectionFormValues, YieldTestFormValues } from "@/types/inspection";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -128,14 +132,12 @@ function buildInspectionData(values: InspectionFormValues) {
 
 // Upsert yield tests: delete removed rows, upsert the rest
 async function syncYieldTests(inspectionId: string, yieldTests: YieldTestFormValues[]) {
-  // Only keep tests that have at least one data point
   const populated = yieldTests.filter(
     (t) => t.startTime || t.totalGallons != null || t.secondsToFillBucket != null
   );
 
   const activeNumbers = populated.map((t) => t.testNumber);
 
-  // Delete any previously saved tests not in the current set
   await db.yieldTest.deleteMany({
     where: {
       inspectionId,
@@ -143,7 +145,6 @@ async function syncYieldTests(inspectionId: string, yieldTests: YieldTestFormVal
     },
   });
 
-  // Upsert each populated test
   for (const t of populated) {
     await db.yieldTest.upsert({
       where: { inspectionId_testNumber: { inspectionId, testNumber: t.testNumber } },
@@ -177,6 +178,18 @@ export async function createInspection(
     });
     await syncYieldTests(inspection.id, values.yieldTests);
     revalidatePath("/inspections");
+
+    const actor = await getActor();
+    const label = `${values.homeownerName} – ${values.propertyAddress}`;
+    await logActivity({
+      actor,
+      entityType: "inspection",
+      entityId: inspection.id,
+      entityLabel: label,
+      action: "created",
+      description: `Created inspection for ${label}`,
+    });
+
     return { id: inspection.id };
   } catch (err) {
     console.error("[createInspection]", err);
@@ -189,11 +202,38 @@ export async function updateInspection(
   values: InspectionFormValues
 ): Promise<{ id: string } | { error: string }> {
   try {
+    const existing = await db.inspection.findUnique({ where: { id } });
     const data = buildInspectionData(values);
     await db.inspection.update({ where: { id }, data });
     await syncYieldTests(id, values.yieldTests);
     revalidatePath("/inspections");
     revalidatePath(`/inspections/${id}`);
+
+    if (existing) {
+      const actor = await getActor();
+      const label = `${existing.homeownerName} – ${existing.propertyAddress}`;
+      const changes = diffObjects(
+        existing as Record<string, unknown>,
+        data as Record<string, unknown>,
+        INSPECTION_SKIP_FIELDS
+      );
+      await Promise.all(
+        changes.map((c) =>
+          logActivity({
+            actor,
+            entityType: "inspection",
+            entityId: id,
+            entityLabel: label,
+            action: "updated",
+            field: c.field,
+            oldValue: c.oldValue || null,
+            newValue: c.newValue || null,
+            description: `Updated ${fieldLabel(c.field)} on inspection for ${label}`,
+          })
+        )
+      );
+    }
+
     return { id };
   } catch (err) {
     console.error("[updateInspection]", err);
@@ -203,8 +243,26 @@ export async function updateInspection(
 
 export async function deleteInspection(id: string): Promise<{ error?: string }> {
   try {
+    const existing = await db.inspection.findUnique({
+      where: { id },
+      select: { homeownerName: true, propertyAddress: true },
+    });
     await db.inspection.delete({ where: { id } });
     revalidatePath("/inspections");
+
+    const actor = await getActor();
+    const label = existing
+      ? `${existing.homeownerName} – ${existing.propertyAddress}`
+      : id;
+    await logActivity({
+      actor,
+      entityType: "inspection",
+      entityId: id,
+      entityLabel: label,
+      action: "deleted",
+      description: `Deleted inspection for ${label}`,
+    });
+
     return {};
   } catch (err) {
     console.error("[deleteInspection]", err);
@@ -218,11 +276,32 @@ export async function overrideInspectionStatus(
   overrideReason: string
 ): Promise<{ error?: string }> {
   try {
+    const existing = await db.inspection.findUnique({
+      where: { id },
+      select: { homeownerName: true, propertyAddress: true, finalStatus: true },
+    });
     await db.inspection.update({
       where: { id },
       data: { finalStatus, overrideReason },
     });
     revalidatePath(`/inspections/${id}`);
+
+    const actor = await getActor();
+    const label = existing
+      ? `${existing.homeownerName} – ${existing.propertyAddress}`
+      : id;
+    await logActivity({
+      actor,
+      entityType: "inspection",
+      entityId: id,
+      entityLabel: label,
+      action: "status_overridden",
+      field: "finalStatus",
+      oldValue: existing?.finalStatus ?? null,
+      newValue: finalStatus,
+      description: `Overrode status to "${finalStatus}" on inspection for ${label}${overrideReason ? ` — ${overrideReason}` : ""}`,
+    });
+
     return {};
   } catch (err) {
     console.error("[overrideInspectionStatus]", err);
@@ -261,6 +340,10 @@ export async function listInspections(vendorId?: string | null) {
 
 export async function savePdfUrl(id: string, url: string): Promise<{ error?: string }> {
   try {
+    const inspection = await db.inspection.findUnique({
+      where: { id },
+      select: { homeownerName: true, propertyAddress: true, reportId: true },
+    });
     await db.$transaction([
       db.inspection.update({
         where: { id },
@@ -269,6 +352,20 @@ export async function savePdfUrl(id: string, url: string): Promise<{ error?: str
       db.pdfGeneration.create({ data: { inspectionId: id, url } }),
     ]);
     revalidatePath(`/inspections/${id}`);
+
+    const actor = await getActor();
+    const label = inspection
+      ? `${inspection.homeownerName} – ${inspection.propertyAddress}`
+      : id;
+    await logActivity({
+      actor,
+      entityType: "pdf",
+      entityId: id,
+      entityLabel: label,
+      action: "generated",
+      description: `Generated PDF report for ${label}`,
+    });
+
     return {};
   } catch (err) {
     console.error("[savePdfUrl]", err);

@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import {
+  getActor, logActivity, diffObjects, fieldLabel,
+  SERVICE_TICKET_SKIP_FIELDS,
+} from "@/lib/activity";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -151,6 +155,19 @@ export async function createServiceTicket(
       data: { ticketNumber, ...buildData(values) },
     });
     revalidatePath("/service-tickets");
+
+    const actor = await getActor();
+    const memberName = `${values.memberFirstName} ${values.memberLastName}`.trim();
+    const label = `Ticket #${ticketNumber} – ${memberName}`;
+    await logActivity({
+      actor,
+      entityType: "service_ticket",
+      entityId: ticket.id,
+      entityLabel: label,
+      action: "created",
+      description: `Created ${label} at ${values.streetAddress}${values.city ? `, ${values.city}` : ""}`,
+    });
+
     return { id: ticket.id };
   } catch (err) {
     console.error("[createServiceTicket]", err);
@@ -163,9 +180,66 @@ export async function updateServiceTicket(
   values: ServiceTicketFormValues
 ): Promise<{ id: string } | { error: string }> {
   try {
-    await db.serviceTicket.update({ where: { id }, data: buildData(values) });
+    const existing = await db.serviceTicket.findUnique({ where: { id } });
+    const data = buildData(values);
+    await db.serviceTicket.update({ where: { id }, data });
     revalidatePath("/service-tickets");
     revalidatePath(`/service-tickets/${id}`);
+
+    if (existing) {
+      const actor = await getActor();
+      const memberName = `${existing.memberFirstName} ${existing.memberLastName}`.trim();
+      const label = `Ticket #${existing.ticketNumber} – ${memberName}`;
+      const changes = diffObjects(
+        existing as Record<string, unknown>,
+        data as Record<string, unknown>,
+        SERVICE_TICKET_SKIP_FIELDS
+      );
+
+      // Resolve vendor name change separately (vendorId is in skip list)
+      const vendorLogs: Promise<void>[] = [];
+      if ((existing.vendorId ?? null) !== (data.vendorId ?? null)) {
+        const [oldVendor, newVendor] = await Promise.all([
+          existing.vendorId
+            ? db.vendor.findUnique({ where: { id: existing.vendorId }, select: { companyName: true } })
+            : null,
+          data.vendorId
+            ? db.vendor.findUnique({ where: { id: data.vendorId }, select: { companyName: true } })
+            : null,
+        ]);
+        vendorLogs.push(
+          logActivity({
+            actor,
+            entityType: "service_ticket",
+            entityId: id,
+            entityLabel: label,
+            action: "updated",
+            field: "vendorId",
+            oldValue: oldVendor?.companyName ?? existing.vendorId ?? "",
+            newValue: newVendor?.companyName ?? data.vendorId ?? "",
+            description: `Updated Vendor on ${label}`,
+          })
+        );
+      }
+
+      await Promise.all([
+        ...changes.map((c) =>
+          logActivity({
+            actor,
+            entityType: "service_ticket",
+            entityId: id,
+            entityLabel: label,
+            action: "updated",
+            field: c.field,
+            oldValue: c.oldValue || null,
+            newValue: c.newValue || null,
+            description: `Updated ${fieldLabel(c.field)} on ${label}`,
+          })
+        ),
+        ...vendorLogs,
+      ]);
+    }
+
     return { id };
   } catch (err) {
     console.error("[updateServiceTicket]", err);
@@ -175,8 +249,26 @@ export async function updateServiceTicket(
 
 export async function deleteServiceTicket(id: string): Promise<{ error?: string }> {
   try {
+    const existing = await db.serviceTicket.findUnique({
+      where: { id },
+      select: { ticketNumber: true, memberFirstName: true, memberLastName: true },
+    });
     await db.serviceTicket.delete({ where: { id } });
     revalidatePath("/service-tickets");
+
+    const actor = await getActor();
+    const label = existing
+      ? `Ticket #${existing.ticketNumber} – ${existing.memberFirstName} ${existing.memberLastName}`.trim()
+      : id;
+    await logActivity({
+      actor,
+      entityType: "service_ticket",
+      entityId: id,
+      entityLabel: label,
+      action: "deleted",
+      description: `Deleted ${label}`,
+    });
+
     return {};
   } catch (err) {
     console.error("[deleteServiceTicket]", err);

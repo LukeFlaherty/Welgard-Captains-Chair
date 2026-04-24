@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getActor, logActivity } from "@/lib/activity";
 
 export type UserRow = {
   id: string;
@@ -82,7 +83,6 @@ export async function createUser(data: {
   const session = await requireAdminOrTeamMember();
   const callerRole = session?.user?.role;
 
-  // Team members can only create vendor users
   if (callerRole === "team_member" && data.role !== "vendor") {
     return { error: "Team members can only create vendor users." };
   }
@@ -92,7 +92,6 @@ export async function createUser(data: {
 
   let resolvedVendorId = data.role === "vendor" ? (data.vendorId ?? null) : null;
 
-  // Create new vendor company inline if requested
   if (data.role === "vendor" && data.newVendorName) {
     const vendor = await db.vendor.create({
       data: {
@@ -103,6 +102,16 @@ export async function createUser(data: {
     });
     resolvedVendorId = vendor.id;
     revalidatePath("/vendors");
+
+    const actor = await getActor();
+    await logActivity({
+      actor,
+      entityType: "vendor",
+      entityId: vendor.id,
+      entityLabel: vendor.companyName,
+      action: "created",
+      description: `Added vendor company "${vendor.companyName}" (inline during user creation)`,
+    });
   }
 
   const hashed = await bcrypt.hash(data.password, 12);
@@ -128,6 +137,18 @@ export async function createUser(data: {
   });
 
   revalidatePath("/settings/users");
+
+  const actor = await getActor();
+  const displayName = data.name || data.email;
+  await logActivity({
+    actor,
+    entityType: "user",
+    entityId: user.id,
+    entityLabel: displayName,
+    action: "created",
+    description: `Created ${data.role} account for "${displayName}" (${data.email})`,
+  });
+
   return {
     user: {
       id: user.id,
@@ -152,12 +173,31 @@ export async function updateUserRole(
     return { error: "You cannot change your own role." };
   }
 
-  // Clear vendor link when changing away from vendor role
+  const target = await db.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true, role: true },
+  });
+
   await db.user.update({
     where: { id: userId },
     data: { role, vendorId: role === "vendor" ? undefined : null },
   });
   revalidatePath("/settings/users");
+
+  const actor = await getActor();
+  const label = target?.name ?? target?.email ?? userId;
+  await logActivity({
+    actor,
+    entityType: "user",
+    entityId: userId,
+    entityLabel: label,
+    action: "role_changed",
+    field: "role",
+    oldValue: target?.role ?? null,
+    newValue: role,
+    description: `Changed role for "${label}" from ${target?.role ?? "unknown"} to ${role}`,
+  });
+
   return {};
 }
 
@@ -167,6 +207,11 @@ export async function linkVendorToUser(
 ): Promise<{ companyName?: string | null; error?: string }> {
   await requireAdminOrTeamMember();
 
+  const [target, vendor] = await Promise.all([
+    db.user.findUnique({ where: { id: userId }, select: { name: true, email: true, vendorId: true } }),
+    vendorId ? db.vendor.findUnique({ where: { id: vendorId }, select: { companyName: true } }) : Promise.resolve(null),
+  ]);
+
   const updated = await db.user.update({
     where: { id: userId },
     data: { vendorId },
@@ -174,10 +219,23 @@ export async function linkVendorToUser(
   });
 
   revalidatePath("/settings/users");
+
+  const actor = await getActor();
+  const label = target?.name ?? target?.email ?? userId;
+  await logActivity({
+    actor,
+    entityType: "user",
+    entityId: userId,
+    entityLabel: label,
+    action: "linked",
+    field: "vendorId",
+    newValue: vendor?.companyName ?? vendorId ?? "none",
+    description: `Linked "${label}" to vendor "${vendor?.companyName ?? vendorId ?? "none"}"`,
+  });
+
   return { companyName: updated.vendor?.companyName ?? null };
 }
 
-// Admin resets another user's password and marks it as temporary
 export async function resetUserPassword(
   userId: string,
   newPassword: string
@@ -191,16 +249,32 @@ export async function resetUserPassword(
     return { error: "Password must be at least 8 characters." };
   }
 
+  const target = await db.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true },
+  });
+
   const hashed = await bcrypt.hash(newPassword, 12);
   await db.user.update({
     where: { id: userId },
     data: { password: hashed, mustChangePassword: true },
   });
   revalidatePath("/settings/users");
+
+  const actor = await getActor();
+  const label = target?.name ?? target?.email ?? userId;
+  await logActivity({
+    actor,
+    entityType: "user",
+    entityId: userId,
+    entityLabel: label,
+    action: "password_reset",
+    description: `Reset password for "${label}" (temporary — must change on next login)`,
+  });
+
   return {};
 }
 
-// User changes their own password (requires current password verification)
 export async function changeSelfPassword(data: {
   currentPassword: string;
   newPassword: string;
@@ -213,7 +287,7 @@ export async function changeSelfPassword(data: {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { password: true },
+    select: { password: true, name: true, email: true },
   });
   if (!user) return { error: "User not found." };
 
@@ -225,10 +299,20 @@ export async function changeSelfPassword(data: {
     where: { id: session.user.id },
     data: { password: hashed, mustChangePassword: false },
   });
+
+  const actor = await getActor();
+  await logActivity({
+    actor,
+    entityType: "user",
+    entityId: session.user.id,
+    entityLabel: user.name ?? user.email,
+    action: "password_reset",
+    description: `Changed own password`,
+  });
+
   return {};
 }
 
-// Clears mustChangePassword after a forced change (no current password needed — admin already reset it)
 export async function completePasswordReset(newPassword: string): Promise<{ error?: string }> {
   const session = await auth();
   if (!session?.user?.id) return { error: "Not authenticated." };
@@ -237,11 +321,27 @@ export async function completePasswordReset(newPassword: string): Promise<{ erro
     return { error: "Password must be at least 8 characters." };
   }
 
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { name: true, email: true },
+  });
+
   const hashed = await bcrypt.hash(newPassword, 12);
   await db.user.update({
     where: { id: session.user.id },
     data: { password: hashed, mustChangePassword: false },
   });
+
+  const actor = await getActor();
+  await logActivity({
+    actor,
+    entityType: "user",
+    entityId: session.user.id,
+    entityLabel: user?.name ?? user?.email ?? session.user.id,
+    action: "password_reset",
+    description: `Completed forced password reset`,
+  });
+
   return {};
 }
 
@@ -252,10 +352,13 @@ export async function deleteUser(userId: string): Promise<{ error?: string }> {
     return { error: "You cannot delete your own account." };
   }
 
-  // Team members can only delete vendor users
   const callerRole = session?.user?.role;
+  const target = await db.user.findUnique({
+    where: { id: userId },
+    select: { role: true, name: true, email: true },
+  });
+
   if (callerRole === "team_member") {
-    const target = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
     if (target?.role !== "vendor") {
       return { error: "Team members can only remove vendor users." };
     }
@@ -263,5 +366,17 @@ export async function deleteUser(userId: string): Promise<{ error?: string }> {
 
   await db.user.delete({ where: { id: userId } });
   revalidatePath("/settings/users");
+
+  const actor = await getActor();
+  const label = target?.name ?? target?.email ?? userId;
+  await logActivity({
+    actor,
+    entityType: "user",
+    entityId: userId,
+    entityLabel: label,
+    action: "deleted",
+    description: `Deleted ${target?.role ?? "user"} account for "${label}"`,
+  });
+
   return {};
 }
