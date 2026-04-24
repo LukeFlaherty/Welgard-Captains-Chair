@@ -7,6 +7,7 @@ import {
   FileText,
   Settings,
   UserCircle,
+  Wrench,
 } from "lucide-react";
 import type { ElementType } from "react";
 
@@ -31,6 +32,12 @@ export const navItems: NavItem[] = [
     label: "Inspectors",
     href: "/inspectors",
     icon: UserCheck,
+    roles: ["admin", "team_member", "vendor"],
+  },
+  {
+    label: "Service Tickets",
+    href: "/service-tickets",
+    icon: Wrench,
     roles: ["admin", "team_member", "vendor"],
   },
   {

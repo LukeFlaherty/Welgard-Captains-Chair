@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "create-admin": "tsx scripts/create-admin.ts",
     "seed-vendors": "tsx scripts/seed-vendors.ts",
-    "seed-inspections": "tsx scripts/seed-inspections.ts"
+    "seed-inspections": "tsx scripts/seed-inspections.ts",
+    "seed-service-tickets": "tsx scripts/seed-service-tickets.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

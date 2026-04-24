@@ -87,6 +87,7 @@ model Vendor {
   updatedAt           DateTime     @updatedAt
   inspections         Inspection[]
   inspectors          Inspector[]
+  serviceTickets      ServiceTicket[]
   users               User[]
 }
 
@@ -256,4 +257,83 @@ model InspectionPhoto {
   label        String?
   fileName     String?
   createdAt    DateTime   @default(now())
+}
+
+// ─── Service Tickets ──────────────────────────────────────────────────────────
+
+model ServiceTicket {
+  id           String  @id @default(cuid())
+  ticketNumber Int     @unique
+
+  // Member (fully inline — no FK)
+  memberFirstName    String
+  memberLastName     String
+  memberEmail        String?
+  memberAltEmail     String?
+  memberPhone        String?
+  memberPhoneType    String?
+  memberAltPhone     String?
+  memberAltPhoneType String?
+
+  // Address (searchable)
+  streetAddress  String
+  streetAddress2 String?
+  city           String?
+  county         String?
+  state          String?
+  zip            String?
+
+  // Core
+  serviceType String  // general_maintenance | emergency
+  status      String  @default("open") // open | scheduled | in_progress | completed
+
+  // Dates
+  callReceivedAt  DateTime
+  scheduledFor    DateTime?
+  lastServiceDate DateTime?
+
+  // Service partner (one vendor per ticket)
+  vendorId           String?
+  vendor             Vendor?  @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  serviceCompletedBy String?  // free-text company name for import / fallback
+
+  // Initial inquiry (team/admin fills at intake)
+  callInNumber        String?
+  customerInquiry     String?
+  customerFollowUp    String?
+  specialInstructions String?
+
+  // Pre-service diagnostic checklist
+  rightOfFirstRefusal Boolean?
+  valvesOpen          String?  // yes | no | dont_know
+  filterClogged       String?  // yes | no | dont_know
+  circuitBreakerReset String?  // yes | no | dont_know
+  lowPressureSwitch   String?  // yes | no | dont_know
+  backwashCycle       String?  // yes | no | dont_know
+  pressureGauge       Boolean?
+
+  // Technician response (team/admin fills post-service)
+  technicianResponse String?
+  amperageReading    Float?
+  yieldValue         Float?
+  depthPerCustomer   Float?
+
+  // Invoice & pricing (admin/team only — not shown to vendors)
+  invoiceNumber      String?
+  invoiceAmount      Float?
+  invoicePaymentType String?
+  invoiceAttachment  String?  // Vercel Blob URL
+  servicePrice       Float?
+
+  // Completion
+  isComplete        Boolean @default(false)
+  completedBy       String? // who marked it complete
+  ticketCompletedBy String? // from source system
+
+  // GHL
+  ghlContactId String?
+
+  // Meta
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
