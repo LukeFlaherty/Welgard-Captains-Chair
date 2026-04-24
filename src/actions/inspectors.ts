@@ -48,17 +48,58 @@ export async function listInspectorsForSelect() {
   });
 }
 
-export async function listInspectors(vendorId?: string | null) {
-  return db.inspector.findMany({
-    where: vendorId ? { vendorId } : undefined,
-    orderBy: { name: "asc" },
-    include: {
-      _count: { select: { inspections: true } },
-      inspections: {
-        select: { finalStatus: true, state: true, city: true },
+export async function listInspectors(opts: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  vendorId?: string | null;
+} = {}) {
+  const { search, page = 1, pageSize = 25, vendorId } = opts;
+  const skip = (page - 1) * pageSize;
+
+  const vendorWhere = vendorId ? { vendorId } : {};
+  const searchWhere = search
+    ? {
+        OR: [
+          { name:          { contains: search, mode: "insensitive" as const } },
+          { email:         { contains: search, mode: "insensitive" as const } },
+          { company:       { contains: search, mode: "insensitive" as const } },
+          { licenseNumber: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+  const where = { ...vendorWhere, ...searchWhere };
+
+  const [data, total] = await Promise.all([
+    db.inspector.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip,
+      take: pageSize,
+      include: {
+        _count: { select: { inspections: true } },
+        inspections: { select: { finalStatus: true, state: true, city: true } },
       },
-    },
-  });
+    }),
+    db.inspector.count({ where }),
+  ]);
+
+  return { data, total };
+}
+
+export async function getInspectorStats(vendorId?: string | null) {
+  const where = vendorId ? { vendorId } : {};
+  const inspWhere = vendorId ? { inspector: { vendorId } } : {};
+
+  const [total, active, greenCount, redCount, inspectionTotal] = await Promise.all([
+    db.inspector.count({ where }),
+    db.inspector.count({ where: { ...where, status: "active" } }),
+    db.inspection.count({ where: { ...inspWhere, finalStatus: "green" } }),
+    db.inspection.count({ where: { ...inspWhere, finalStatus: "red" } }),
+    db.inspection.count({ where: inspWhere }),
+  ]);
+
+  return { total, active, green: greenCount, red: redCount, inspections: inspectionTotal };
 }
 
 export async function getInspector(id: string) {
