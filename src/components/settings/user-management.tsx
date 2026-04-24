@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { UserPlus, Trash2, Loader2, ShieldCheck, Users, Wrench, Building2, KeyRound, Copy, RefreshCw } from "lucide-react";
+import { UserPlus, Trash2, Loader2, ShieldCheck, Users, Wrench, Building2, KeyRound, Copy, RefreshCw, PlusCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,6 +80,10 @@ const addUserSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum(["admin", "team_member", "vendor"]),
   vendorId: z.string().optional(),
+  createNewVendor: z.boolean().optional(),
+  newVendorName: z.string().optional(),
+  newVendorEmail: z.string().optional(),
+  newVendorPhone: z.string().optional(),
 });
 
 type AddUserValues = z.infer<typeof addUserSchema>;
@@ -208,16 +212,20 @@ type VendorOption = { id: string; companyName: string };
 type Props = {
   users: UserRow[];
   currentUserId: string;
+  currentUserRole: string;
   vendors: VendorOption[];
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function UserManagement({ users: initialUsers, currentUserId, vendors }: Props) {
+export function UserManagement({ users: initialUsers, currentUserId, currentUserRole, vendors: initialVendors }: Props) {
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
+  const [vendors, setVendors] = useState<VendorOption[]>(initialVendors);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const isAdmin = currentUserRole === "admin";
 
   const {
     register,
@@ -229,27 +237,60 @@ export function UserManagement({ users: initialUsers, currentUserId, vendors }: 
   } = useForm<AddUserValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(addUserSchema) as any,
-    defaultValues: { name: "", email: "", password: "", role: "team_member", vendorId: "" },
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      role: isAdmin ? "team_member" : "vendor",
+      vendorId: "",
+      createNewVendor: false,
+      newVendorName: "",
+      newVendorEmail: "",
+      newVendorPhone: "",
+    },
   });
 
   const watchedRole = watch("role");
   const watchedVendorId = watch("vendorId");
+  const watchedCreateNewVendor = watch("createNewVendor");
+  const watchedNewVendorName = watch("newVendorName");
 
   // ── Add user ────────────────────────────────────────────────────────────────
   async function onAddUser(values: AddUserValues) {
-    const result = await createUser({
-      ...values,
+    const payload: Parameters<typeof createUser>[0] = {
       name: values.name ?? "",
-      vendorId: values.role === "vendor" ? (values.vendorId ?? null) : null,
-    });
+      email: values.email,
+      password: values.password,
+      role: values.role,
+      vendorId: values.role === "vendor" && !values.createNewVendor ? (values.vendorId ?? null) : null,
+      newVendorName: values.role === "vendor" && values.createNewVendor ? (values.newVendorName ?? undefined) : undefined,
+      newVendorEmail: values.role === "vendor" && values.createNewVendor ? (values.newVendorEmail ?? undefined) : undefined,
+      newVendorPhone: values.role === "vendor" && values.createNewVendor ? (values.newVendorPhone ?? undefined) : undefined,
+    };
+
+    if (values.role === "vendor" && values.createNewVendor && !values.newVendorName) {
+      toast.error("Company name is required when creating a new vendor company.");
+      return;
+    }
+
+    const result = await createUser(payload);
     if (result.error) {
       toast.error(result.error);
       return;
     }
     if (result.user) {
       setUsers((prev) => [...prev, result.user!]);
+      // If a new vendor was created, add it to the local vendors list
+      if (values.createNewVendor && result.user.companyName && result.user.vendorId) {
+        setVendors((prev) => [...prev, { id: result.user!.vendorId!, companyName: result.user!.companyName! }]);
+      }
       toast.success(`${result.user.email} added successfully.`);
-      reset();
+      reset({
+        name: "", email: "", password: "",
+        role: isAdmin ? "team_member" : "vendor",
+        vendorId: "", createNewVendor: false,
+        newVendorName: "", newVendorEmail: "", newVendorPhone: "",
+      });
       setDialogOpen(false);
     }
   }
@@ -314,21 +355,18 @@ export function UserManagement({ users: initialUsers, currentUserId, vendors }: 
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Role legend */}
+      {/* Role legend — only show all roles for admins */}
       <div className="flex flex-wrap gap-4 p-4 border rounded-xl bg-muted/30">
-        {Object.entries(ROLE_LABELS).map(([role, label]) => {
-          void label;
-          return (
-            <div key={role} className="flex flex-col gap-1">
-              <RoleBadge role={role} />
-              <p className="text-xs text-muted-foreground ml-1">
-                {role === "admin" && "Full access + user management"}
-                {role === "team_member" && "Full dashboard, no user settings"}
-                {role === "vendor" && "Inspections only — filtered to their company"}
-              </p>
-            </div>
-          );
-        })}
+        {(isAdmin ? ["admin", "team_member", "vendor"] : ["vendor"]).map((role) => (
+          <div key={role} className="flex flex-col gap-1">
+            <RoleBadge role={role} />
+            <p className="text-xs text-muted-foreground ml-1">
+              {role === "admin" && "Full access + user management"}
+              {role === "team_member" && "Full dashboard, no user settings"}
+              {role === "vendor" && "Inspections only — filtered to their company"}
+            </p>
+          </div>
+        ))}
       </div>
 
       {/* Header row */}
@@ -336,7 +374,15 @@ export function UserManagement({ users: initialUsers, currentUserId, vendors }: 
         <p className="text-sm text-muted-foreground">
           {users.length} {users.length === 1 ? "user" : "users"}
         </p>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) reset({
+            name: "", email: "", password: "",
+            role: isAdmin ? "team_member" : "vendor",
+            vendorId: "", createNewVendor: false,
+            newVendorName: "", newVendorEmail: "", newVendorPhone: "",
+          });
+        }}>
           <DialogTrigger render={<Button size="sm" className="gap-2" />}>
             <UserPlus className="w-4 h-4" />
             Add User
@@ -345,7 +391,9 @@ export function UserManagement({ users: initialUsers, currentUserId, vendors }: 
             <DialogHeader>
               <DialogTitle>Add a new user</DialogTitle>
               <DialogDescription>
-                Create an account and share the credentials with the team member or vendor.
+                {isAdmin
+                  ? "Create an account and share the credentials with the team member or vendor."
+                  : "Create a vendor account and share the credentials with the inspection company."}
               </DialogDescription>
             </DialogHeader>
 
@@ -359,7 +407,7 @@ export function UserManagement({ users: initialUsers, currentUserId, vendors }: 
                 <Label htmlFor="email">
                   Email <span className="text-destructive">*</span>
                 </Label>
-                <Input id="email" type="email" placeholder="jane@welgard.com" {...register("email")} />
+                <Input id="email" type="email" placeholder="jane@company.com" {...register("email")} />
                 {errors.email && (
                   <p className="text-xs text-destructive">{errors.email.message}</p>
                 )}
@@ -375,58 +423,119 @@ export function UserManagement({ users: initialUsers, currentUserId, vendors }: 
                 )}
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label>Role <span className="text-destructive">*</span></Label>
-                <Select
-                  value={watchedRole}
-                  onValueChange={(v) => {
-                    setValue("role", v as AddUserValues["role"]);
-                    setValue("vendorId", "");
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select role…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin — full access</SelectItem>
-                    <SelectItem value="team_member">Team Member — dashboard access</SelectItem>
-                    <SelectItem value="vendor">Vendor — inspections + inspectors (own company)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Vendor company picker — only shown for vendor role */}
-              {watchedRole === "vendor" && (
-                <div className="flex flex-col gap-1.5 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 p-3">
-                  <Label className="flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-amber-600" />
-                    Link to Inspection Company
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Select the vendor company this user represents. They will only see inspections and inspectors belonging to this company.
-                  </p>
+              {/* Role picker — admins see all options; team_members only see vendor */}
+              {isAdmin && (
+                <div className="flex flex-col gap-1.5">
+                  <Label>Role <span className="text-destructive">*</span></Label>
                   <Select
-                    value={watchedVendorId ?? ""}
-                    onValueChange={(v) => setValue("vendorId", v ?? undefined)}
+                    value={watchedRole}
+                    onValueChange={(v) => {
+                      setValue("role", v as AddUserValues["role"]);
+                      setValue("vendorId", "");
+                      setValue("createNewVendor", false);
+                      setValue("newVendorName", "");
+                    }}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select company…" />
+                      <SelectValue placeholder="Select role…" />
                     </SelectTrigger>
                     <SelectContent>
-                      {vendors.length === 0 && (
-                        <SelectItem value="" disabled>No vendor companies yet</SelectItem>
-                      )}
-                      {vendors.map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {v.companyName}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="admin">Admin — full access</SelectItem>
+                      <SelectItem value="team_member">Team Member — dashboard access</SelectItem>
+                      <SelectItem value="vendor">Vendor — inspections + inspectors (own company)</SelectItem>
                     </SelectContent>
                   </Select>
-                  {!watchedVendorId && (
-                    <p className="text-xs text-amber-700">
-                      No company linked — the user can log in but will see no data until linked.
-                    </p>
+                </div>
+              )}
+
+              {/* Vendor company section — shown for vendor role */}
+              {watchedRole === "vendor" && (
+                <div className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 p-3">
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-amber-600" />
+                    <Label className="text-sm font-medium">Inspection Company</Label>
+                  </div>
+
+                  {/* Toggle: existing vs new */}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setValue("createNewVendor", false); setValue("newVendorName", ""); }}
+                      className={`flex-1 text-xs py-1.5 px-3 rounded-md border transition-colors ${!watchedCreateNewVendor ? "bg-white border-amber-400 text-amber-800 font-medium shadow-sm" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                    >
+                      Existing company
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setValue("createNewVendor", true); setValue("vendorId", ""); }}
+                      className={`flex-1 text-xs py-1.5 px-3 rounded-md border transition-colors ${watchedCreateNewVendor ? "bg-white border-amber-400 text-amber-800 font-medium shadow-sm" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <span className="flex items-center justify-center gap-1">
+                        <PlusCircle className="w-3 h-3" />
+                        Create new
+                      </span>
+                    </button>
+                  </div>
+
+                  {!watchedCreateNewVendor ? (
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        Select the vendor company this user represents.
+                      </p>
+                      <Select
+                        value={watchedVendorId ?? ""}
+                        onValueChange={(v) => setValue("vendorId", v ?? undefined)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select company…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vendors.length === 0 && (
+                            <SelectItem value="" disabled>No vendor companies yet — create one below</SelectItem>
+                          )}
+                          {vendors.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>
+                              {v.companyName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {!watchedVendorId && (
+                        <p className="text-xs text-amber-700">
+                          No company linked — user can log in but will see no data until linked.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        A new vendor company will be created and linked to this user.
+                      </p>
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="newVendorName" className="text-xs">
+                          Company Name <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="newVendorName"
+                          placeholder="ClearWater Inspection Services"
+                          className="text-sm"
+                          {...register("newVendorName")}
+                        />
+                        {!watchedNewVendorName && (
+                          <p className="text-xs text-destructive">Required</p>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="newVendorEmail" className="text-xs">Company Email</Label>
+                          <Input id="newVendorEmail" type="email" placeholder="info@company.com" className="text-sm" {...register("newVendorEmail")} />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="newVendorPhone" className="text-xs">Company Phone</Label>
+                          <Input id="newVendorPhone" placeholder="555-000-0000" className="text-sm" {...register("newVendorPhone")} />
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
@@ -458,6 +567,8 @@ export function UserManagement({ users: initialUsers, currentUserId, vendors }: 
             {users.map((user) => {
               const isSelf = user.id === currentUserId;
               const isConfirmingDelete = deletingId === user.id;
+              // Team members can only manage vendor users
+              const canManage = isAdmin || user.role === "vendor";
 
               return (
                 <TableRow key={user.id}>
@@ -478,7 +589,7 @@ export function UserManagement({ users: initialUsers, currentUserId, vendors }: 
 
                   {/* Role selector */}
                   <TableCell>
-                    {isSelf ? (
+                    {isSelf || !isAdmin ? (
                       <RoleBadge role={user.role} />
                     ) : (
                       <Select
@@ -508,7 +619,7 @@ export function UserManagement({ users: initialUsers, currentUserId, vendors }: 
                             {user.companyName}
                           </span>
                         )}
-                        {!isSelf && (
+                        {!isSelf && canManage && (
                           <Select
                             value={user.vendorId ?? ""}
                             onValueChange={(v) => handleLinkVendor(user.id, v || null)}
@@ -546,6 +657,8 @@ export function UserManagement({ users: initialUsers, currentUserId, vendors }: 
                   <TableCell className="text-right">
                     {isSelf ? (
                       <span className="text-xs text-muted-foreground">—</span>
+                    ) : !canManage ? (
+                      <span className="text-xs text-muted-foreground">—</span>
                     ) : isConfirmingDelete ? (
                       <div className="flex items-center justify-end gap-2">
                         <span className="text-xs text-destructive">Remove?</span>
@@ -570,7 +683,7 @@ export function UserManagement({ users: initialUsers, currentUserId, vendors }: 
                       </div>
                     ) : (
                       <div className="flex items-center justify-end gap-1">
-                        <ResetPasswordDialog user={user} />
+                        {isAdmin && <ResetPasswordDialog user={user} />}
                         <Button
                           size="icon-sm"
                           variant="ghost"

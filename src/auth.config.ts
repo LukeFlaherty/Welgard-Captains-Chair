@@ -44,9 +44,12 @@ export const authConfig = {
         return Response.redirect(new URL("/", nextUrl));
       }
 
-      // Settings: admin only
+      // Settings: admin only, except /settings/users which team_member can access
       if (pathname.startsWith("/settings") && role !== "admin") {
-        return Response.redirect(new URL("/inspections", nextUrl));
+        const isUsersPage = pathname === "/settings/users" || pathname === "/settings/users/";
+        if (!isUsersPage || role !== "team_member") {
+          return Response.redirect(new URL("/inspections", nextUrl));
+        }
       }
 
       // Vendor: only allowed routes + root

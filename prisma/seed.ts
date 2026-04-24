@@ -24,303 +24,12 @@ async function main() {
   await prisma.yieldTest.deleteMany();
   await prisma.inspectionPhoto.deleteMany();
   await prisma.inspection.deleteMany();
+  await prisma.user.deleteMany({ where: { role: "vendor" } });
+  await prisma.inspector.deleteMany();
   await prisma.vendor.deleteMany();
   await prisma.member.deleteMany();
-  await prisma.inspector.deleteMany();
 
-  // ─── 20 Inspectors ────────────────────────────────────────────────────────
-
-  const marcus = await prisma.inspector.create({
-    data: {
-      name: "Marcus Webb",
-      email: "marcus@clearwater-inspect.com",
-      phone: "555-201-4400",
-      company: "ClearWater Inspection Services",
-      licenseNumber: "WI-2024-0881",
-      licenseStates: ["VA", "MD", "WV"],
-      certifications: ["NGWA Certified Well Driller", "VA Licensed Well Inspector"],
-      yearsExperience: 12,
-      status: "active",
-      notes: "Senior inspector. Specializes in drilled wells and deep aquifer systems across the Shenandoah Valley corridor.",
-    },
-  });
-
-  const diana = await prisma.inspector.create({
-    data: {
-      name: "Diana Reyes",
-      email: "diana@summitwellpump.com",
-      phone: "555-308-7722",
-      company: "Summit Well & Pump",
-      licenseNumber: "WI-2023-0445",
-      licenseStates: ["MD", "PA", "WV"],
-      certifications: ["NGWA Certified Well Inspector", "MD Licensed Water Well Contractor"],
-      yearsExperience: 9,
-      status: "active",
-      notes: "Highly experienced with bored and drilled wells in the Cumberland and Hagerstown areas.",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Aaron Mitchell",
-      email: "a.mitchell@blueridgewell.com",
-      phone: "555-445-0099",
-      company: "Blue Ridge Well Services",
-      licenseNumber: "WI-NC-2022-1120",
-      licenseStates: ["VA", "NC"],
-      certifications: ["NGWA Certified Well Inspector", "NC Licensed Well Contractor"],
-      yearsExperience: 7,
-      status: "active",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Susan Park",
-      email: "s.park@appalachianwater.com",
-      phone: "555-612-3344",
-      company: "Appalachian Water Systems",
-      licenseNumber: "WI-WV-2021-0332",
-      licenseStates: ["WV", "VA"],
-      certifications: ["NGWA Water Well Systems Professional"],
-      yearsExperience: 14,
-      status: "active",
-      notes: "Expert in mountain geology and high-yield aquifer assessment.",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Brian Kowalski",
-      email: "b.kowalski@eshore-well.com",
-      phone: "555-733-8822",
-      company: "Eastern Shore Well Co",
-      licenseNumber: "WI-MD-2020-0678",
-      licenseStates: ["MD", "VA"],
-      certifications: ["MD Licensed Well Inspector", "NGWA Certified Pump Installer"],
-      yearsExperience: 11,
-      status: "active",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Lisa Thornton",
-      email: "l.thornton@truewellinspect.com",
-      phone: "555-901-2255",
-      company: "TrueWell Inspections",
-      licenseNumber: "WI-TN-2023-0219",
-      licenseStates: ["TN", "NC"],
-      certifications: ["TN Licensed Well Inspector", "NGWA Certified Well Driller"],
-      yearsExperience: 6,
-      status: "active",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Carlos Mendez",
-      email: "c.mendez@mtnstatewater.com",
-      phone: "555-877-4411",
-      company: "Mountain State Water",
-      licenseNumber: "WI-WV-2019-0501",
-      licenseStates: ["WV", "PA"],
-      certifications: ["NGWA Certified Well Inspector", "WV Licensed Well Contractor"],
-      yearsExperience: 16,
-      status: "active",
-      notes: "Specializes in coal region well assessments and remediation.",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Rachel Foster",
-      email: "r.foster@capitalwellsvc.com",
-      phone: "555-322-7700",
-      company: "Capital Region Well Services",
-      licenseNumber: "WI-VA-2022-0998",
-      licenseStates: ["VA", "MD"],
-      certifications: ["VA Licensed Well Inspector", "NGWA Water Well Systems Professional"],
-      yearsExperience: 5,
-      status: "active",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Kevin O'Brien",
-      email: "k.obrien@keystonewell.com",
-      phone: "555-588-3310",
-      company: "Keystone Well Inspectors",
-      licenseNumber: "WI-PA-2018-0344",
-      licenseStates: ["PA"],
-      certifications: ["PA Licensed Water Well Driller", "NGWA Certified Well Inspector"],
-      yearsExperience: 18,
-      status: "active",
-      notes: "Licensed in PA only — does not cross state lines.",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Sandra Williams",
-      email: "s.williams@shenandoahwellco.com",
-      phone: "555-419-6688",
-      company: "Shenandoah Valley Well Co",
-      licenseNumber: "WI-VA-2021-0771",
-      licenseStates: ["VA", "WV"],
-      certifications: ["NGWA Certified Well Inspector"],
-      yearsExperience: 8,
-      status: "active",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "David Chen",
-      email: "d.chen@atlanticwellsvc.com",
-      phone: "555-650-2299",
-      company: "Atlantic Well Services",
-      licenseNumber: "WI-MD-2023-0841",
-      licenseStates: ["MD", "NC"],
-      certifications: ["MD Licensed Well Inspector", "EPA Section 5 Certified"],
-      yearsExperience: 4,
-      status: "active",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Patricia Moore",
-      email: "p.moore@cumberlandwellsys.com",
-      phone: "555-744-5500",
-      company: "Cumberland Well Systems",
-      licenseNumber: "WI-MD-2017-0203",
-      licenseStates: ["MD", "WV", "PA"],
-      certifications: ["NGWA Certified Well Inspector", "MD & WV Dual Licensed Well Contractor"],
-      yearsExperience: 20,
-      status: "active",
-      notes: "Most experienced inspector on the roster. Available for complex or contested inspections.",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "James Wilson",
-      email: "j.wilson@tidewaterinspect.com",
-      phone: "555-811-3322",
-      company: "Tidewater Inspection Group",
-      licenseNumber: "WI-VA-2020-0556",
-      licenseStates: ["VA"],
-      certifications: ["VA Licensed Well Inspector", "NGWA Certified Pump Installer"],
-      yearsExperience: 10,
-      status: "active",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Jennifer Hayes",
-      email: "j.hayes@bluemountainwell.com",
-      phone: "555-522-9900",
-      company: "Blue Mountain Well Services",
-      licenseNumber: "WI-PA-2022-0714",
-      licenseStates: ["PA"],
-      certifications: ["PA Licensed Water Well Driller", "NGWA Water Well Systems Professional"],
-      yearsExperience: 6,
-      status: "active",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Michael Torres",
-      email: "m.torres@olddominion-water.com",
-      phone: "555-300-1144",
-      company: "Old Dominion Water Services",
-      licenseNumber: "WI-VA-2016-0122",
-      licenseStates: ["VA"],
-      certifications: ["VA Licensed Well Inspector", "NGWA Certified Well Driller", "Backflow Prevention Certified"],
-      yearsExperience: 22,
-      status: "active",
-      notes: "Veteran inspector — 22 years experience. Preferred for large or complex residential systems.",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Kimberly Ross",
-      email: "k.ross@appalachianwellexp.com",
-      phone: "555-678-4433",
-      company: "Appalachian Well Experts",
-      licenseNumber: "WI-WV-2020-0889",
-      licenseStates: ["WV", "KY"],
-      certifications: ["WV Licensed Well Contractor", "NGWA Certified Well Inspector"],
-      yearsExperience: 9,
-      status: "inactive",
-      notes: "Currently on extended leave — expected return Q3 2026.",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Robert Taylor",
-      email: "r.taylor@chesapeakewellsys.com",
-      phone: "555-455-7700",
-      company: "Chesapeake Well Systems",
-      licenseNumber: "WI-MD-2019-0667",
-      licenseStates: ["MD", "VA"],
-      certifications: ["MD Licensed Well Inspector", "NGWA Certified Well Inspector"],
-      yearsExperience: 13,
-      status: "active",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Nancy Anderson",
-      email: "n.anderson@potomacvalleyinspect.com",
-      phone: "555-211-8866",
-      company: "Potomac Valley Inspectors",
-      licenseNumber: "WI-VA-2021-0309",
-      licenseStates: ["VA", "MD"],
-      certifications: ["VA Licensed Well Inspector", "Water Quality Testing Certified"],
-      yearsExperience: 7,
-      status: "active",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Christopher Lee",
-      email: "c.lee@highlandwellsvc.com",
-      phone: "555-388-2211",
-      company: "Highland Well Services",
-      licenseNumber: "WI-WV-2023-0144",
-      licenseStates: ["WV", "VA"],
-      certifications: ["NGWA Certified Well Inspector"],
-      yearsExperience: 3,
-      status: "active",
-      notes: "Newer inspector — working under senior supervision for complex cases.",
-    },
-  });
-
-  await prisma.inspector.create({
-    data: {
-      name: "Amanda Johnson",
-      email: "a.johnson@mountaineerinspect.com",
-      phone: "555-700-9988",
-      company: "Mountaineer Well Inspectors",
-      licenseNumber: "WI-WV-2018-0733",
-      licenseStates: ["WV"],
-      certifications: ["WV Licensed Well Contractor", "NGWA Certified Well Driller", "NGWA Certified Pump Installer"],
-      yearsExperience: 15,
-      status: "active",
-      notes: "Specializes in rural and off-grid well systems in eastern WV.",
-    },
-  });
-
-  // ─── Vendors ──────────────────────────────────────────────────────────────
+  // ─── Vendor Companies ─────────────────────────────────────────────────────
 
   const vendor1 = await prisma.vendor.create({
     data: {
@@ -339,6 +48,40 @@ async function main() {
       email: "diana@summitwellpump.com",
       phone: "555-308-7722",
       licenseNumber: "WI-2023-0445",
+    },
+  });
+
+  // ─── Inspectors (linked to their vendor companies) ─────────────────────────
+
+  const marcus = await prisma.inspector.create({
+    data: {
+      name: "Marcus Webb",
+      email: "marcus@clearwater-inspect.com",
+      phone: "555-201-4400",
+      company: "ClearWater Inspection Services",
+      licenseNumber: "WI-2024-0881",
+      licenseStates: ["VA", "MD", "WV"],
+      certifications: ["NGWA Certified Well Driller", "VA Licensed Well Inspector"],
+      yearsExperience: 12,
+      status: "active",
+      notes: "Senior inspector. Specializes in drilled wells and deep aquifer systems across the Shenandoah Valley corridor.",
+      vendorId: vendor1.id,
+    },
+  });
+
+  const diana = await prisma.inspector.create({
+    data: {
+      name: "Diana Reyes",
+      email: "diana@summitwellpump.com",
+      phone: "555-308-7722",
+      company: "Summit Well & Pump",
+      licenseNumber: "WI-2023-0445",
+      licenseStates: ["MD", "PA", "WV"],
+      certifications: ["NGWA Certified Well Inspector", "MD Licensed Water Well Contractor"],
+      yearsExperience: 9,
+      status: "active",
+      notes: "Highly experienced with bored and drilled wells in the Cumberland and Hagerstown areas.",
+      vendorId: vendor2.id,
     },
   });
 
@@ -375,7 +118,7 @@ async function main() {
   });
 
   // ─── 14 Inspections ───────────────────────────────────────────────────────
-  // Odd-numbered → Marcus Webb  |  Even-numbered → Diana Reyes
+  // Odd-numbered → Marcus Webb / ClearWater  |  Even-numbered → Diana Reyes / Summit
 
   // #1 — Premium
   await prisma.inspection.create({
@@ -514,9 +257,10 @@ async function main() {
     },
   });
 
-  // #4 — Draft (in progress)
+  // #4 — Draft (in progress) — Diana / Summit
   await prisma.inspection.create({
     data: {
+      vendorId: vendor2.id,
       inspectorId: diana.id,
       homeownerName: "Sandra Flores",
       homeownerEmail: "s.flores@gmail.com",
@@ -548,9 +292,10 @@ async function main() {
     },
   });
 
-  // #5 — Premium, WV, deep drilled well
+  // #5 — Premium, WV — Marcus / ClearWater
   await prisma.inspection.create({
     data: {
+      vendorId: vendor1.id,
       inspectorId: marcus.id,
       homeownerName: "Thomas Greer",
       homeownerEmail: "t.greer@email.com",
@@ -588,9 +333,10 @@ async function main() {
     },
   });
 
-  // #6 — Superior, PA, aging components
+  // #6 — Superior, PA — Diana / Summit
   await prisma.inspection.create({
     data: {
+      vendorId: vendor2.id,
       inspectorId: diana.id,
       homeownerName: "Beverly Okafor",
       homeownerEmail: "b.okafor@netmail.com",
@@ -629,9 +375,10 @@ async function main() {
     },
   });
 
-  // #7 — Standard, NC, multiple failures
+  // #7 — Standard, NC — Marcus / ClearWater
   await prisma.inspection.create({
     data: {
+      vendorId: vendor1.id,
       inspectorId: marcus.id,
       homeownerName: "Harold Stinson",
       homeownerEmail: "hstinson@homemail.net",
@@ -669,9 +416,10 @@ async function main() {
     },
   });
 
-  // #8 — Premium, TN
+  // #8 — Premium, TN — Diana / Summit
   await prisma.inspection.create({
     data: {
+      vendorId: vendor2.id,
       inspectorId: diana.id,
       homeownerName: "Angela Drummond",
       homeownerEmail: "a.drummond@outlook.com",
@@ -709,9 +457,10 @@ async function main() {
     },
   });
 
-  // #9 — Superior system → Premium override (reviewer)
+  // #9 — Superior → Premium override — Marcus / ClearWater
   await prisma.inspection.create({
     data: {
+      vendorId: vendor1.id,
       inspectorId: marcus.id,
       homeownerName: "Curtis Langley",
       homeownerEmail: "clangley@gmail.com",
@@ -751,9 +500,10 @@ async function main() {
     },
   });
 
-  // #10 — Superior system → Standard override (policy)
+  // #10 — Superior → Standard override — Diana / Summit
   await prisma.inspection.create({
     data: {
+      vendorId: vendor2.id,
       inspectorId: diana.id,
       homeownerName: "Marlene Hutchins",
       homeownerEmail: "m.hutchins@verizon.net",
@@ -794,9 +544,10 @@ async function main() {
     },
   });
 
-  // #11 — Premium, VA, well maintained
+  // #11 — Premium, VA — Marcus / ClearWater
   await prisma.inspection.create({
     data: {
+      vendorId: vendor1.id,
       inspectorId: marcus.id,
       homeownerName: "George Pemberton",
       homeownerEmail: "gpemberton@email.com",
@@ -836,9 +587,10 @@ async function main() {
     },
   });
 
-  // #12 — Standard, WV, tank failure
+  // #12 — Standard, WV — Diana / Summit
   await prisma.inspection.create({
     data: {
+      vendorId: vendor2.id,
       inspectorId: diana.id,
       homeownerName: "Renee Castillo",
       homeownerEmail: "r.castillo@wvmail.com",
@@ -877,9 +629,10 @@ async function main() {
     },
   });
 
-  // #13 — Premium, MD, brand new
+  // #13 — Premium, MD — Marcus / ClearWater
   await prisma.inspection.create({
     data: {
+      vendorId: vendor1.id,
       inspectorId: marcus.id,
       homeownerName: "Diane Whitmore",
       homeownerEmail: "dwhitmore@gmail.com",
@@ -917,9 +670,10 @@ async function main() {
     },
   });
 
-  // #14 — Draft, PA
+  // #14 — Draft, PA — Diana / Summit
   await prisma.inspection.create({
     data: {
+      vendorId: vendor2.id,
       inspectorId: diana.id,
       homeownerName: "Victor Salinas",
       homeownerEmail: "vsalinas@email.net",
@@ -951,7 +705,7 @@ async function main() {
     },
   });
 
-  console.log("Seed complete — 20 inspectors, 2 vendors, 3 members, 14 inspections (12 published + 2 drafts)");
+  console.log("Seed complete — 2 vendors, 2 inspectors, 3 members, 14 inspections (12 published + 2 drafts)");
 }
 
 main()

@@ -44,7 +44,6 @@ export const navItems: NavItem[] = [
     label: "Vendors",
     href: "/vendors",
     icon: Building2,
-    comingSoon: true,
     roles: ["admin", "team_member"],
   },
   {
@@ -54,6 +53,7 @@ export const navItems: NavItem[] = [
     comingSoon: true,
     roles: ["admin", "team_member"],
   },
+  { label: "Settings", href: "/settings/users", icon: Settings, roles: ["team_member"] },
   { label: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
   { label: "Account", href: "/account", icon: UserCircle },
 ];

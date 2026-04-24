@@ -24,8 +24,17 @@ async function requireAdmin() {
   return session;
 }
 
+async function requireAdminOrTeamMember() {
+  const session = await auth();
+  const role = session?.user?.role;
+  if (role !== "admin" && role !== "team_member") {
+    throw new Error("Unauthorized.");
+  }
+  return session;
+}
+
 export async function listUsers(): Promise<UserRow[]> {
-  await requireAdmin();
+  await requireAdminOrTeamMember();
   const users = await db.user.findMany({
     select: {
       id: true,
@@ -53,7 +62,7 @@ export async function listUsers(): Promise<UserRow[]> {
 }
 
 export async function listVendorsForSelect() {
-  await requireAdmin();
+  await requireAdminOrTeamMember();
   return db.vendor.findMany({
     orderBy: { companyName: "asc" },
     select: { id: true, companyName: true },
@@ -66,11 +75,35 @@ export async function createUser(data: {
   password: string;
   role: string;
   vendorId?: string | null;
+  newVendorName?: string;
+  newVendorEmail?: string;
+  newVendorPhone?: string;
 }): Promise<{ user?: UserRow; error?: string }> {
-  await requireAdmin();
+  const session = await requireAdminOrTeamMember();
+  const callerRole = session?.user?.role;
+
+  // Team members can only create vendor users
+  if (callerRole === "team_member" && data.role !== "vendor") {
+    return { error: "Team members can only create vendor users." };
+  }
 
   const existing = await db.user.findUnique({ where: { email: data.email } });
   if (existing) return { error: "A user with that email already exists." };
+
+  let resolvedVendorId = data.role === "vendor" ? (data.vendorId ?? null) : null;
+
+  // Create new vendor company inline if requested
+  if (data.role === "vendor" && data.newVendorName) {
+    const vendor = await db.vendor.create({
+      data: {
+        companyName: data.newVendorName,
+        email: data.newVendorEmail || null,
+        phone: data.newVendorPhone || null,
+      },
+    });
+    resolvedVendorId = vendor.id;
+    revalidatePath("/vendors");
+  }
 
   const hashed = await bcrypt.hash(data.password, 12);
   const user = await db.user.create({
@@ -79,7 +112,7 @@ export async function createUser(data: {
       email: data.email,
       password: hashed,
       role: data.role,
-      vendorId: data.role === "vendor" ? (data.vendorId ?? null) : null,
+      vendorId: resolvedVendorId,
     },
     select: {
       id: true,
@@ -132,7 +165,7 @@ export async function linkVendorToUser(
   userId: string,
   vendorId: string | null
 ): Promise<{ companyName?: string | null; error?: string }> {
-  await requireAdmin();
+  await requireAdminOrTeamMember();
 
   const updated = await db.user.update({
     where: { id: userId },
@@ -213,10 +246,19 @@ export async function completePasswordReset(newPassword: string): Promise<{ erro
 }
 
 export async function deleteUser(userId: string): Promise<{ error?: string }> {
-  const session = await requireAdmin();
+  const session = await requireAdminOrTeamMember();
 
-  if (session.user.id === userId) {
+  if (session?.user?.id === userId) {
     return { error: "You cannot delete your own account." };
+  }
+
+  // Team members can only delete vendor users
+  const callerRole = session?.user?.role;
+  if (callerRole === "team_member") {
+    const target = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (target?.role !== "vendor") {
+      return { error: "Team members can only remove vendor users." };
+    }
   }
 
   await db.user.delete({ where: { id: userId } });
