@@ -16,6 +16,7 @@ export type YieldTestFormValues = {
   startTime: string;          // "HH:MM" or ""
   totalGallons: number | null;
   secondsToFillBucket: number | null;
+  staticWaterLevelFt: number | null;
 };
 
 export type InspectionFormValues = {
@@ -41,19 +42,38 @@ export type InspectionFormValues = {
   wellDepthFt: number | null;
   wellDepthUnknown: boolean;
   pumpType: string;
+  pumpManufacturer: string;
+  pumpHp: string;
 
   // External Equipment
+  wellCompletionDate: string;
+  wellCompletionDateUnknown: boolean;
+  wellPermit: string;
+  wellPermitUnknown: boolean;
+  wellDataSource: string;
   wellObstructions: string;
   wellCap: string;
   casingHeightInches: number | null;
+  casingType: string;
+  casingSize: string;
+  distanceFromHouseFt: number | null;
 
   // Internal Equipment
   amperageReading: number | null;
   tankCondition: string;
+  tankBrand: string;
+  tankModel: string;
+  tankSizeGal: number | null;
+  psiSettings: string;
   controlBoxCondition: string;
+  waterTreatment: string;
+  wireType: string;
   pressureSwitch: string;
   pressureGauge: string;
   constantPressureSystem: boolean;
+
+  // Yield Test
+  yieldTestType: string;
 
   // Cycle Test
   secondsToHighReading: number | null;

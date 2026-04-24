@@ -33,11 +33,21 @@ import type { InspectionFormValues, InspectionWithRelations, InspectionStatus } 
 import {
   WELL_TYPE_OPTIONS,
   PUMP_TYPE_OPTIONS,
+  PUMP_MANUFACTURER_OPTIONS,
+  PUMP_HP_OPTIONS,
+  WELL_DATA_SOURCE_OPTIONS,
   WELL_OBSTRUCTION_OPTIONS,
   WELL_CAP_OPTIONS,
+  CASING_TYPE_OPTIONS,
+  CASING_SIZE_OPTIONS,
   TANK_CONDITION_OPTIONS,
+  TANK_BRAND_OPTIONS,
+  PSI_SETTINGS_OPTIONS,
+  WATER_TREATMENT_OPTIONS,
+  WIRE_TYPE_OPTIONS,
   CONTROL_BOX_OPTIONS,
   PRESSURE_COMPONENT_OPTIONS,
+  YIELD_TEST_TYPE_OPTIONS,
   ACTIVITY_OPTIONS,
   FINAL_STATUS_OPTIONS,
   PHOTO_LABELS,
@@ -55,6 +65,7 @@ const yieldTestSchema = z.object({
   startTime:           z.string().optional().default(""),
   totalGallons:        numField,
   secondsToFillBucket: numField,
+  staticWaterLevelFt:  numField,
 });
 
 const schema = z.object({
@@ -69,22 +80,39 @@ const schema = z.object({
   inspectorName:         z.string().optional().default(""),
   inspectionCompany:     z.string().optional().default(""),
   inspectionDate:        z.string().min(1, "Inspection date is required"),
-  wellType:              z.string().optional().default(""),
-  wellDepthFt:           numField,
-  wellDepthUnknown:      z.boolean().default(false),
-  pumpType:              z.string().optional().default(""),
-  wellObstructions:      z.string().optional().default(""),
-  wellCap:               z.string().optional().default(""),
-  casingHeightInches:    numField,
-  amperageReading:       numField,
-  tankCondition:         z.string().optional().default(""),
-  controlBoxCondition:   z.string().optional().default(""),
-  pressureSwitch:        z.string().optional().default(""),
-  pressureGauge:         z.string().optional().default(""),
-  constantPressureSystem: z.boolean().default(false),
-  secondsToHighReading:  numField,
-  secondsToLowReading:   numField,
-  yieldTests:            z.array(yieldTestSchema),
+  wellType:                  z.string().optional().default(""),
+  wellDepthFt:               numField,
+  wellDepthUnknown:          z.boolean().default(false),
+  pumpType:                  z.string().optional().default(""),
+  pumpManufacturer:          z.string().optional().default(""),
+  pumpHp:                    z.string().optional().default(""),
+  wellCompletionDate:        z.string().optional().default(""),
+  wellCompletionDateUnknown: z.boolean().default(false),
+  wellPermit:                z.string().optional().default(""),
+  wellPermitUnknown:         z.boolean().default(false),
+  wellDataSource:            z.string().optional().default(""),
+  wellObstructions:          z.string().optional().default(""),
+  wellCap:                   z.string().optional().default(""),
+  casingHeightInches:        numField,
+  casingType:                z.string().optional().default(""),
+  casingSize:                z.string().optional().default(""),
+  distanceFromHouseFt:       numField,
+  amperageReading:           numField,
+  tankCondition:             z.string().optional().default(""),
+  tankBrand:                 z.string().optional().default(""),
+  tankModel:                 z.string().optional().default(""),
+  tankSizeGal:               numField,
+  psiSettings:               z.string().optional().default(""),
+  controlBoxCondition:       z.string().optional().default(""),
+  waterTreatment:            z.string().optional().default(""),
+  wireType:                  z.string().optional().default(""),
+  pressureSwitch:            z.string().optional().default(""),
+  pressureGauge:             z.string().optional().default(""),
+  constantPressureSystem:    z.boolean().default(false),
+  secondsToHighReading:      numField,
+  secondsToLowReading:       numField,
+  yieldTestType:             z.string().optional().default(""),
+  yieldTests:                z.array(yieldTestSchema),
   wellCalculationVersion: z.number().default(2),
   inspectorNotes:        z.string().optional().default(""),
   internalReviewerNotes: z.string().optional().default(""),
@@ -110,6 +138,7 @@ function emptyYieldTests() {
     startTime: "",
     totalGallons: null as number | null,
     secondsToFillBucket: null as number | null,
+    staticWaterLevelFt: null as number | null,
   }));
 }
 
@@ -124,38 +153,56 @@ function toFormValues(inspection: InspectionWithRelations): FormValues {
       startTime: found?.startTime ?? "",
       totalGallons: found?.totalGallons ?? null,
       secondsToFillBucket: found?.secondsToFillBucket ?? null,
+      staticWaterLevelFt: (found as { staticWaterLevelFt?: number | null })?.staticWaterLevelFt ?? null,
     };
   });
 
   return {
-    inspectorId:           inspection.inspectorId ?? "",
-    homeownerName:         inspection.homeownerName,
-    homeownerEmail:        inspection.homeownerEmail ?? "",
-    homeownerPhone:        inspection.homeownerPhone ?? "",
-    propertyAddress:       inspection.propertyAddress,
-    city:                  inspection.city ?? "",
-    state:                 inspection.state ?? "",
-    zip:                   inspection.zip ?? "",
-    inspectorName:         inspection.inspectorName ?? "",
-    inspectionCompany:     inspection.inspectionCompany ?? "",
-    inspectionDate:        new Date(inspection.inspectionDate).toISOString().slice(0, 10),
-    wellType:              inspection.wellType ?? "",
-    wellDepthFt:           inspection.wellDepthFt ?? null,
-    wellDepthUnknown:      inspection.wellDepthUnknown,
-    pumpType:              inspection.pumpType ?? "",
-    wellObstructions:      inspection.wellObstructions ?? "",
-    wellCap:               inspection.wellCap ?? "",
-    casingHeightInches:    inspection.casingHeightInches ?? null,
-    amperageReading:       inspection.amperageReading ?? null,
-    tankCondition:         inspection.tankCondition ?? "",
-    controlBoxCondition:   inspection.controlBoxCondition ?? "",
-    pressureSwitch:        inspection.pressureSwitch ?? "",
-    pressureGauge:         inspection.pressureGauge ?? "",
-    constantPressureSystem: inspection.constantPressureSystem,
-    secondsToHighReading:  inspection.secondsToHighReading ?? null,
-    secondsToLowReading:   inspection.secondsToLowReading ?? null,
+    inspectorId:               inspection.inspectorId ?? "",
+    homeownerName:             inspection.homeownerName,
+    homeownerEmail:            inspection.homeownerEmail ?? "",
+    homeownerPhone:            inspection.homeownerPhone ?? "",
+    propertyAddress:           inspection.propertyAddress,
+    city:                      inspection.city ?? "",
+    state:                     inspection.state ?? "",
+    zip:                       inspection.zip ?? "",
+    inspectorName:             inspection.inspectorName ?? "",
+    inspectionCompany:         inspection.inspectionCompany ?? "",
+    inspectionDate:            new Date(inspection.inspectionDate).toISOString().slice(0, 10),
+    wellType:                  inspection.wellType ?? "",
+    wellDepthFt:               inspection.wellDepthFt ?? null,
+    wellDepthUnknown:          inspection.wellDepthUnknown,
+    pumpType:                  inspection.pumpType ?? "",
+    pumpManufacturer:          (inspection as { pumpManufacturer?: string | null }).pumpManufacturer ?? "",
+    pumpHp:                    (inspection as { pumpHp?: string | null }).pumpHp ?? "",
+    wellCompletionDate:        (inspection as { wellCompletionDate?: string | null }).wellCompletionDate ?? "",
+    wellCompletionDateUnknown: (inspection as { wellCompletionDateUnknown?: boolean }).wellCompletionDateUnknown ?? false,
+    wellPermit:                (inspection as { wellPermit?: string | null }).wellPermit ?? "",
+    wellPermitUnknown:         (inspection as { wellPermitUnknown?: boolean }).wellPermitUnknown ?? false,
+    wellDataSource:            (inspection as { wellDataSource?: string | null }).wellDataSource ?? "",
+    wellObstructions:          inspection.wellObstructions ?? "",
+    wellCap:                   inspection.wellCap ?? "",
+    casingHeightInches:        inspection.casingHeightInches ?? null,
+    casingType:                (inspection as { casingType?: string | null }).casingType ?? "",
+    casingSize:                (inspection as { casingSize?: string | null }).casingSize ?? "",
+    distanceFromHouseFt:       (inspection as { distanceFromHouseFt?: number | null }).distanceFromHouseFt ?? null,
+    amperageReading:           inspection.amperageReading ?? null,
+    tankCondition:             inspection.tankCondition ?? "",
+    tankBrand:                 (inspection as { tankBrand?: string | null }).tankBrand ?? "",
+    tankModel:                 (inspection as { tankModel?: string | null }).tankModel ?? "",
+    tankSizeGal:               (inspection as { tankSizeGal?: number | null }).tankSizeGal ?? null,
+    psiSettings:               (inspection as { psiSettings?: string | null }).psiSettings ?? "",
+    controlBoxCondition:       inspection.controlBoxCondition ?? "",
+    waterTreatment:            (inspection as { waterTreatment?: string | null }).waterTreatment ?? "",
+    wireType:                  (inspection as { wireType?: string | null }).wireType ?? "",
+    pressureSwitch:            inspection.pressureSwitch ?? "",
+    pressureGauge:             inspection.pressureGauge ?? "",
+    constantPressureSystem:    inspection.constantPressureSystem,
+    secondsToHighReading:      inspection.secondsToHighReading ?? null,
+    secondsToLowReading:       inspection.secondsToLowReading ?? null,
+    yieldTestType:             (inspection as { yieldTestType?: string | null }).yieldTestType ?? "",
     yieldTests,
-    wellCalculationVersion: inspection.wellCalculationVersion,
+    wellCalculationVersion:    inspection.wellCalculationVersion,
     inspectorNotes:        inspection.inspectorNotes ?? "",
     internalReviewerNotes: inspection.internalReviewerNotes ?? "",
     requiredRepairs:       inspection.requiredRepairs ?? "",
@@ -304,13 +351,21 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
             propertyAddress: "", city: "", state: "", zip: "",
             inspectorName: "", inspectionCompany: "",
             inspectionDate: new Date().toISOString().slice(0, 10),
-            wellType: "", wellDepthFt: null, wellDepthUnknown: false, pumpType: "",
+            wellType: "", wellDepthFt: null, wellDepthUnknown: false,
+            pumpType: "", pumpManufacturer: "", pumpHp: "",
+            wellCompletionDate: "", wellCompletionDateUnknown: false,
+            wellPermit: "", wellPermitUnknown: false,
+            wellDataSource: "",
             wellObstructions: "", wellCap: "", casingHeightInches: null,
+            casingType: "", casingSize: "", distanceFromHouseFt: null,
             amperageReading: null,
-            tankCondition: "", controlBoxCondition: "",
+            tankCondition: "", tankBrand: "", tankModel: "", tankSizeGal: null,
+            psiSettings: "", controlBoxCondition: "",
+            waterTreatment: "", wireType: "",
             pressureSwitch: "", pressureGauge: "",
             constantPressureSystem: false,
             secondsToHighReading: null, secondsToLowReading: null,
+            yieldTestType: "",
             yieldTests: emptyYieldTests(),
             wellCalculationVersion: 2,
             inspectorNotes: "", internalReviewerNotes: "",
@@ -394,43 +449,61 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
     const payload: InspectionFormValues = {
       ...values,
       isDraft,
-      inspectorId:      values.inspectorId ?? "",
-      homeownerEmail:   values.homeownerEmail ?? "",
-      homeownerPhone:   values.homeownerPhone ?? "",
-      city:             values.city ?? "",
-      state:            values.state ?? "",
-      zip:              values.zip ?? "",
-      inspectorName:    values.inspectorName ?? "",
-      inspectionCompany: values.inspectionCompany ?? "",
-      wellType:         values.wellType ?? "",
-      pumpType:         values.pumpType ?? "",
-      wellObstructions: values.wellObstructions ?? "",
-      wellCap:          values.wellCap ?? "",
-      tankCondition:    values.tankCondition ?? "",
-      controlBoxCondition: values.controlBoxCondition ?? "",
-      pressureSwitch:   values.pressureSwitch ?? "",
-      pressureGauge:    values.pressureGauge ?? "",
-      inspectorNotes:   values.inspectorNotes ?? "",
-      internalReviewerNotes: values.internalReviewerNotes ?? "",
-      requiredRepairs:  values.requiredRepairs ?? "",
-      recommendedRepairs: values.recommendedRepairs ?? "",
-      memberFacingSummary: values.memberFacingSummary ?? "",
-      finalStatus:      (values.finalStatus as InspectionStatus | "") ?? "",
-      overrideReason:   values.overrideReason ?? "",
-      ghlContactId:     values.ghlContactId ?? "",
-      ghlOpportunityId: values.ghlOpportunityId ?? "",
-      ghlLocationId:    values.ghlLocationId ?? "",
-      activity:         values.activity ?? "",
-      wellDepthFt:      values.wellDepthFt ?? null,
-      casingHeightInches: values.casingHeightInches ?? null,
-      amperageReading:  values.amperageReading ?? null,
-      secondsToHighReading: values.secondsToHighReading ?? null,
-      secondsToLowReading:  values.secondsToLowReading ?? null,
+      inspectorId:               values.inspectorId ?? "",
+      homeownerEmail:            values.homeownerEmail ?? "",
+      homeownerPhone:            values.homeownerPhone ?? "",
+      city:                      values.city ?? "",
+      state:                     values.state ?? "",
+      zip:                       values.zip ?? "",
+      inspectorName:             values.inspectorName ?? "",
+      inspectionCompany:         values.inspectionCompany ?? "",
+      wellType:                  values.wellType ?? "",
+      pumpType:                  values.pumpType ?? "",
+      pumpManufacturer:          values.pumpManufacturer ?? "",
+      pumpHp:                    values.pumpHp ?? "",
+      wellCompletionDate:        values.wellCompletionDate ?? "",
+      wellCompletionDateUnknown: values.wellCompletionDateUnknown ?? false,
+      wellPermit:                values.wellPermit ?? "",
+      wellPermitUnknown:         values.wellPermitUnknown ?? false,
+      wellDataSource:            values.wellDataSource ?? "",
+      wellObstructions:          values.wellObstructions ?? "",
+      wellCap:                   values.wellCap ?? "",
+      casingType:                values.casingType ?? "",
+      casingSize:                values.casingSize ?? "",
+      distanceFromHouseFt:       values.distanceFromHouseFt ?? null,
+      tankCondition:             values.tankCondition ?? "",
+      tankBrand:                 values.tankBrand ?? "",
+      tankModel:                 values.tankModel ?? "",
+      tankSizeGal:               values.tankSizeGal ?? null,
+      psiSettings:               values.psiSettings ?? "",
+      controlBoxCondition:       values.controlBoxCondition ?? "",
+      waterTreatment:            values.waterTreatment ?? "",
+      wireType:                  values.wireType ?? "",
+      pressureSwitch:            values.pressureSwitch ?? "",
+      pressureGauge:             values.pressureGauge ?? "",
+      yieldTestType:             values.yieldTestType ?? "",
+      inspectorNotes:            values.inspectorNotes ?? "",
+      internalReviewerNotes:     values.internalReviewerNotes ?? "",
+      requiredRepairs:           values.requiredRepairs ?? "",
+      recommendedRepairs:        values.recommendedRepairs ?? "",
+      memberFacingSummary:       values.memberFacingSummary ?? "",
+      finalStatus:               (values.finalStatus as InspectionStatus | "") ?? "",
+      overrideReason:            values.overrideReason ?? "",
+      ghlContactId:              values.ghlContactId ?? "",
+      ghlOpportunityId:          values.ghlOpportunityId ?? "",
+      ghlLocationId:             values.ghlLocationId ?? "",
+      activity:                  values.activity ?? "",
+      wellDepthFt:               values.wellDepthFt ?? null,
+      casingHeightInches:        values.casingHeightInches ?? null,
+      amperageReading:           values.amperageReading ?? null,
+      secondsToHighReading:      values.secondsToHighReading ?? null,
+      secondsToLowReading:       values.secondsToLowReading ?? null,
       yieldTests: values.yieldTests.map((t) => ({
-        testNumber: t.testNumber,
-        startTime:  t.startTime ?? "",
-        totalGallons: t.totalGallons ?? null,
+        testNumber:         t.testNumber,
+        startTime:          t.startTime ?? "",
+        totalGallons:       t.totalGallons ?? null,
         secondsToFillBucket: t.secondsToFillBucket ?? null,
+        staticWaterLevelFt: t.staticWaterLevelFt ?? null,
       })),
     };
 
@@ -606,6 +679,24 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                   placeholder="Select pump type"
                 />
               </Field>
+
+              <Field label="Pump Manufacturer">
+                <FormSelect
+                  value={watched.pumpManufacturer ?? ""}
+                  onChange={(v) => setValue("pumpManufacturer", v)}
+                  options={PUMP_MANUFACTURER_OPTIONS}
+                  placeholder="Select manufacturer"
+                />
+              </Field>
+
+              <Field label="Pump HP">
+                <FormSelect
+                  value={watched.pumpHp ?? ""}
+                  onChange={(v) => setValue("pumpHp", v)}
+                  options={PUMP_HP_OPTIONS}
+                  placeholder="Select HP"
+                />
+              </Field>
             </CardContent>
           </Card>
         </TabsContent>
@@ -619,6 +710,63 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
               status={calc.externalEquipmentStatus}
             />
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Well history */}
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-sm font-medium">Well Completion Date</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    {...register("wellCompletionDate")}
+                    placeholder="e.g. 2010 or Oct 2015"
+                    disabled={watched.wellCompletionDateUnknown}
+                    className="flex-1"
+                  />
+                  <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
+                    <input type="checkbox" {...register("wellCompletionDateUnknown")} className="rounded" />
+                    Unknown
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-sm font-medium">Well Permit (Date / #)</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    {...register("wellPermit")}
+                    placeholder="Permit date or number"
+                    disabled={watched.wellPermitUnknown}
+                    className="flex-1"
+                  />
+                  <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
+                    <input type="checkbox" {...register("wellPermitUnknown")} className="rounded" />
+                    Unknown
+                  </label>
+                </div>
+              </div>
+
+              <Field label="Data Source">
+                <FormSelect
+                  value={watched.wellDataSource ?? ""}
+                  onChange={(v) => setValue("wellDataSource", v)}
+                  options={WELL_DATA_SOURCE_OPTIONS}
+                  placeholder="Select data source"
+                />
+              </Field>
+
+              <Field
+                label="Distance from House (ft)"
+              >
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  {...register("distanceFromHouseFt", {
+                    setValueAs: (v) => (v === "" || v == null ? null : parseFloat(v)),
+                  })}
+                  placeholder="e.g. 25"
+                />
+              </Field>
+
+              {/* Obstructions & cap */}
               <Field label="Well Obstructions">
                 <FormSelect
                   value={watched.wellObstructions ?? ""}
@@ -633,6 +781,8 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                   options={WELL_CAP_OPTIONS}
                 />
               </Field>
+
+              {/* Casing */}
               <Field
                 label="Height of Casing Above Ground (in)"
                 hint="Must be greater than 6 inches to pass."
@@ -645,6 +795,24 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                     setValueAs: (v) => (v === "" || v == null ? null : parseFloat(v)),
                   })}
                   placeholder="e.g. 8"
+                />
+              </Field>
+
+              <Field label="Casing Type">
+                <FormSelect
+                  value={watched.casingType ?? ""}
+                  onChange={(v) => setValue("casingType", v)}
+                  options={CASING_TYPE_OPTIONS}
+                  placeholder="Select casing type"
+                />
+              </Field>
+
+              <Field label="Casing Size">
+                <FormSelect
+                  value={watched.casingSize ?? ""}
+                  onChange={(v) => setValue("casingSize", v)}
+                  options={CASING_SIZE_OPTIONS}
+                  placeholder="Select casing size"
                 />
               </Field>
             </CardContent>
@@ -696,11 +864,57 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                     options={TANK_CONDITION_OPTIONS}
                   />
                 </Field>
+                <Field label="Tank Brand">
+                  <FormSelect
+                    value={watched.tankBrand ?? ""}
+                    onChange={(v) => setValue("tankBrand", v)}
+                    options={TANK_BRAND_OPTIONS}
+                    placeholder="Select brand"
+                  />
+                </Field>
+                <Field label="Tank Model">
+                  <Input {...register("tankModel")} placeholder="e.g. WX-202" />
+                </Field>
+                <Field label="Tank Size (Gal)">
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    {...register("tankSizeGal", {
+                      setValueAs: (v) => (v === "" || v == null ? null : parseFloat(v)),
+                    })}
+                    placeholder="e.g. 44"
+                  />
+                </Field>
+                <Field label="PSI Settings">
+                  <FormSelect
+                    value={watched.psiSettings ?? ""}
+                    onChange={(v) => setValue("psiSettings", v)}
+                    options={PSI_SETTINGS_OPTIONS}
+                    placeholder="Select PSI settings"
+                  />
+                </Field>
                 <Field label="Control Box Condition">
                   <FormSelect
                     value={watched.controlBoxCondition ?? ""}
                     onChange={(v) => setValue("controlBoxCondition", v)}
                     options={CONTROL_BOX_OPTIONS}
+                  />
+                </Field>
+                <Field label="Water Treatment">
+                  <FormSelect
+                    value={watched.waterTreatment ?? ""}
+                    onChange={(v) => setValue("waterTreatment", v)}
+                    options={WATER_TREATMENT_OPTIONS}
+                    placeholder="Select treatment type"
+                  />
+                </Field>
+                <Field label="Wire Type">
+                  <FormSelect
+                    value={watched.wireType ?? ""}
+                    onChange={(v) => setValue("wireType", v)}
+                    options={WIRE_TYPE_OPTIONS}
+                    placeholder="Select wire type"
                   />
                 </Field>
                 <Field label="Pressure Switch">
@@ -794,6 +1008,15 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
               status={calc.wellYieldStatus}
             />
             <CardContent className="flex flex-col gap-6">
+              <Field label="Test Method">
+                <FormSelect
+                  value={watched.yieldTestType ?? ""}
+                  onChange={(v) => setValue("yieldTestType", v)}
+                  options={YIELD_TEST_TYPE_OPTIONS}
+                  placeholder="Select test method…"
+                />
+              </Field>
+
               <YieldTestTable form={form as unknown as import("react-hook-form").UseFormReturn<import("@/types/inspection").InspectionFormValues>} />
 
               <Separator />

@@ -121,20 +121,39 @@ model Inspection {
   wellType         String?  // drilled | bored | hand_dug | stick | artesian | driven_point | other
   wellDepthFt      Float?
   wellDepthUnknown Boolean  @default(false)
-  pumpType         String?  // submersible | jet | hand | other
+  pumpType         String?  // submersible | jet | constant_pressure | hand | other
+  pumpManufacturer String?  // unknown | franklin | goulds | grundfos | other
+  pumpHp           String?  // 0_5hp | 0_75hp | 1hp | 1_5hp | 2hp | unknown | other
 
   // External Equipment inputs
-  wellObstructions   String?  // none | ornamental | vegetation | debris | structural | other
-  wellCap            String?  // sealed_contamination_resistant | bored_well | not_applicable_buried | secured_bolted | unsecured_open | missing_damaged
-  casingHeightInches Float?
+  wellCompletionDate        String?
+  wellCompletionDateUnknown Boolean @default(false)
+  wellPermit                String?
+  wellPermitUnknown         Boolean @default(false)
+  wellDataSource            String?  // homeowner | official | notation_near_well | other
+  wellObstructions          String?  // none | ornamental | buried | vegetation | debris | structural | other
+  wellCap                   String?  // sealed_contamination_resistant | bored_well | not_applicable_buried | secured_bolted | unsecured_open | missing_damaged
+  casingHeightInches        Float?
+  casingType                String?  // pvc | steel | other
+  casingSize                String?  // lt_4in | 4in | 6in | unknown | other
+  distanceFromHouseFt       Float?
 
   // Internal Equipment inputs
   amperageReading        Float?
   tankCondition          String?  // good | fair | poor | failed
+  tankBrand              String?  // state | welxtrol | other
+  tankModel              String?
+  tankSizeGal            Float?
+  psiSettings            String?  // 30_50 | 40_60 | other
   controlBoxCondition    String?  // ok | not_present | damaged
+  waterTreatment         String?  // softener | sediment_filter | other
+  wireType               String?  // 12 | 10 | 8 | 2_wire | 3_wire | other
   pressureSwitch         String?  // visibly_present_intact | not_present | damaged
   pressureGauge          String?  // visibly_present_intact | not_present | damaged
   constantPressureSystem Boolean  @default(false)
+
+  // Yield test method
+  yieldTestType          String?  // flow_test | static_level_test
 
   // Cycle Test inputs
   secondsToHighReading Float?
@@ -204,6 +223,7 @@ model YieldTest {
   startTime           String?    // "HH:MM" format (same-day test, time math only)
   totalGallons        Float?
   secondsToFillBucket Float?
+  staticWaterLevelFt  Float?
   createdAt           DateTime   @default(now())
 
   @@unique([inspectionId, testNumber])

@@ -495,6 +495,61 @@ export default function InspectionLogicPage() {
 
       <Separator />
 
+      {/* Informational Fields */}
+      <div className="flex flex-col gap-3">
+        <SectionHeader
+          label="Informational Fields"
+          description="These fields are recorded on the inspection worksheet for documentation purposes. They do not affect pass/fail scoring or membership tier."
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm">External Equipment</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <ul className="text-xs flex flex-col gap-1 text-muted-foreground list-disc list-inside">
+                <li>Well Completion Date</li>
+                <li>Well Permit (Date / #)</li>
+                <li>Data Source (Homeowner / Official / Notation near well)</li>
+                <li>Casing Type (PVC / Steel)</li>
+                <li>Casing Size (&lt;4&quot; / 4&quot; / 6&quot;)</li>
+                <li>Distance from House (ft)</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm">Internal Equipment</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <ul className="text-xs flex flex-col gap-1 text-muted-foreground list-disc list-inside">
+                <li>Pump Manufacturer (Franklin / Goulds / Grundfos)</li>
+                <li>Pump HP (½ – 2 hp)</li>
+                <li>Tank Brand, Model, and Size (Gal)</li>
+                <li>PSI Settings (30/50 or 40/60)</li>
+                <li>Water Treatment (Softener / Sediment Filter)</li>
+                <li>Wire Type (12 / 10 / 8 / 2-wire / 3-wire)</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm">Yield Tests</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <ul className="text-xs flex flex-col gap-1 text-muted-foreground list-disc list-inside">
+                <li>Test Method (Flow Test or Static Water Level Test)</li>
+                <li>Static Water Level (ft) — recorded per test row when using the static level method</li>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Separator />
+
       {/* Quick Reference */}
       <div className="flex flex-col gap-3">
         <SectionHeader
