@@ -49,14 +49,25 @@ export type IntakeFormData = {
 };
 
 export async function createIntakeInspection(
-  data: IntakeFormData
+  data: IntakeFormData & { overrideInspectorId?: string }
 ): Promise<{ id: string } | { error: string }> {
   const session = await auth();
   if (!session?.user?.id) return { error: "Not authenticated." };
 
-  const inspectorId = session.user.inspectorId;
+  const role = session.user.role ?? "vendor";
+  const isPrivileged = role === "admin" || role === "team_member";
+
+  // Admins/team members may pass an explicit inspector to submit on behalf of.
+  // Everyone else uses the inspector linked to their own session.
+  let inspectorId: string | null | undefined;
+  if (isPrivileged && data.overrideInspectorId) {
+    inspectorId = data.overrideInspectorId;
+  } else {
+    inspectorId = session.user.inspectorId;
+  }
+
   if (!inspectorId) {
-    return { error: "Your account is not linked to an inspector profile. Contact Welgard to get set up." };
+    return { error: "No inspector selected. Please choose an inspector before submitting." };
   }
 
   const inspector = await db.inspector.findUnique({

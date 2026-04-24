@@ -149,16 +149,18 @@ function SuccessCard({ inspectionId, onAnother }: { inspectionId: string; onAnot
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-type Props = {
-  inspectorName: string;
-  inspectionCompany: string | null;
-};
+type InspectorOption = { id: string; name: string; company: string | null };
+
+type Props =
+  | { inspectorName: string; inspectionCompany: string | null; inspectors?: never }
+  | { inspectors: InspectorOption[]; inspectorName?: never; inspectionCompany?: never };
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function IntakeForm({ inspectorName, inspectionCompany }: Props) {
+export function IntakeForm({ inspectorName, inspectionCompany, inspectors }: Props) {
   const [submittedId, setSubmittedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedInspectorId, setSelectedInspectorId] = useState<string>("");
 
   const {
     register,
@@ -204,8 +206,13 @@ export function IntakeForm({ inspectorName, inspectionCompany }: Props) {
   const constantPressureSystem = watch("constantPressureSystem");
 
   async function onSubmit(values: FormValues) {
+    if (inspectors && !selectedInspectorId) {
+      toast.error("Please select an inspector before submitting.");
+      return;
+    }
     setSubmitting(true);
     const result = await createIntakeInspection({
+      ...(inspectors ? { overrideInspectorId: selectedInspectorId } : {}),
       homeownerName:          values.homeownerName,
       homeownerEmail:         values.homeownerEmail ?? "",
       homeownerPhone:         values.homeownerPhone ?? "",
@@ -257,29 +264,54 @@ export function IntakeForm({ inspectorName, inspectionCompany }: Props) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
 
-      {/* Inspector identity — read-only */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="pt-5">
-          <div className="flex flex-wrap gap-6">
-            <div className="flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-primary/70" />
-              <div>
-                <p className="text-xs text-muted-foreground">Inspector</p>
-                <p className="font-semibold text-sm">{inspectorName}</p>
+      {/* Inspector identity */}
+      {inspectors ? (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-3">
+              <UserCheck className="w-4 h-4 text-primary/70 shrink-0" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground mb-1.5">Submitting as inspector</p>
+                <Select value={selectedInspectorId} onValueChange={(v) => setSelectedInspectorId(v ?? "")}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Select inspector…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {inspectors.map((i) => (
+                      <SelectItem key={i.id} value={i.id}>
+                        {i.name}{i.company ? ` — ${i.company}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            {inspectionCompany && (
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="pt-5">
+            <div className="flex flex-wrap gap-6">
               <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-primary/70" />
+                <UserCheck className="w-4 h-4 text-primary/70" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Company</p>
-                  <p className="font-semibold text-sm">{inspectionCompany}</p>
+                  <p className="text-xs text-muted-foreground">Inspector</p>
+                  <p className="font-semibold text-sm">{inspectorName}</p>
                 </div>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              {inspectionCompany && (
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-primary/70" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Company</p>
+                    <p className="font-semibold text-sm">{inspectionCompany}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Section 1: Property & Homeowner ── */}
       <Card>
