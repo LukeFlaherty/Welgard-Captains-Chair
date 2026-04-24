@@ -1,7 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 
 // Routes vendors can access
-const VENDOR_ALLOWED = ["/inspections", "/inspectors", "/account"];
+const VENDOR_ALLOWED = ["/inspections", "/inspectors", "/service-tickets", "/account"];
 
 export const authConfig = {
   pages: {

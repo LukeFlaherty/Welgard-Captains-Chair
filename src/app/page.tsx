@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 
-export default function RootPage() {
-  redirect("/inspections");
+export default async function RootPage() {
+  const session = await auth();
+  const role = session?.user?.role ?? "vendor";
+  redirect(role === "vendor" ? "/service-tickets" : "/inspections");
 }
