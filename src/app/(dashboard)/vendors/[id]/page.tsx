@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Pencil, Building2, UserCheck, Users, ClipboardCheck, Mail, Phone, FileText } from "lucide-react";
+import {
+  ArrowLeft, Pencil, Building2, UserCheck, Users, ClipboardCheck,
+  Mail, Phone, FileText, MapPin, Globe, Calendar, StickyNote, Clock,
+} from "lucide-react";
 import { format } from "date-fns";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,22 +16,44 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
+const RATING_LABELS: Record<string, { label: string; cls: string }> = {
+  "1": { label: "Rating: 1 (Best)", cls: "bg-green-100 text-green-700 border-green-300" },
+  "2": { label: "Rating: 2", cls: "bg-yellow-100 text-yellow-700 border-yellow-300" },
+  "3": { label: "Rating: 3 (Caution)", cls: "bg-red-100 text-red-700 border-red-300" },
+  "Prospect": { label: "Prospect", cls: "bg-blue-100 text-blue-700 border-blue-300" },
+};
+
+const FINAL_STATUS_COLORS: Record<string, string> = {
+  green: "text-green-600",
+  yellow: "text-yellow-600",
+  red: "text-red-600",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  active: "bg-green-100 text-green-700 border-green-300",
+  inactive: "bg-muted text-muted-foreground border-border",
+  suspended: "bg-red-100 text-red-700 border-red-300",
+};
+
+function InfoCard({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1 p-4 border rounded-xl bg-card">
+      <span className="text-xs text-muted-foreground flex items-center gap-1">
+        {icon}{label}
+      </span>
+      <span className="font-medium text-sm break-words">{value}</span>
+    </div>
+  );
+}
+
 export default async function VendorDetailPage({ params }: Props) {
   const { id } = await params;
   const vendor = await getVendor(id);
   if (!vendor) notFound();
 
-  const STATUS_COLORS: Record<string, string> = {
-    active: "bg-green-100 text-green-700 border-green-300",
-    inactive: "bg-muted text-muted-foreground border-border",
-    suspended: "bg-red-100 text-red-700 border-red-300",
-  };
-
-  const FINAL_STATUS_COLORS: Record<string, string> = {
-    green: "text-green-600",
-    yellow: "text-yellow-600",
-    red: "text-red-600",
-  };
+  const rating = vendor.rating ? RATING_LABELS[vendor.rating] : null;
+  const location = [vendor.city, vendor.county, vendor.state, vendor.zip].filter(Boolean).join(", ");
+  const address = [vendor.streetAddress, vendor.streetAddress2].filter(Boolean).join(", ");
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-8 max-w-5xl mx-auto w-full">
@@ -53,37 +78,98 @@ export default async function VendorDetailPage({ params }: Props) {
       </div>
 
       {/* Company info */}
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-muted-foreground" />
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Building2 className="w-5 h-5 text-muted-foreground shrink-0" />
           <h1 className="text-2xl font-bold tracking-tight">{vendor.companyName}</h1>
+          {vendor.vendorType && (
+            <Badge variant="outline">{vendor.vendorType}</Badge>
+          )}
+          {rating && (
+            <span className={`text-xs px-2 py-0.5 rounded-full border ${rating.cls}`}>
+              {rating.label}
+            </span>
+          )}
+          {vendor.availableAfterHours && (
+            <span className="text-xs px-2 py-0.5 rounded-full border bg-purple-100 text-purple-700 border-purple-300 flex items-center gap-1">
+              <Clock className="w-3 h-3" /> After Hours
+            </span>
+          )}
         </div>
         {vendor.licenseNumber && (
           <p className="text-sm text-muted-foreground ml-7">License: {vendor.licenseNumber}</p>
         )}
+        {vendor.taxId && (
+          <p className="text-sm text-muted-foreground ml-7">Tax ID: {vendor.taxId}</p>
+        )}
       </div>
 
-      {/* Contact card */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {vendor.inspectorName && (
-          <div className="flex flex-col gap-1 p-4 border rounded-xl bg-card">
-            <span className="text-xs text-muted-foreground">Primary Contact</span>
-            <span className="font-medium text-sm">{vendor.inspectorName}</span>
-          </div>
+      {/* Contact cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {vendor.primaryContact && (
+          <InfoCard label="Primary Contact" value={vendor.primaryContact} />
         )}
         {vendor.email && (
-          <div className="flex flex-col gap-1 p-4 border rounded-xl bg-card">
-            <span className="text-xs text-muted-foreground flex items-center gap-1"><Mail className="w-3 h-3" /> Email</span>
-            <span className="font-medium text-sm">{vendor.email}</span>
-          </div>
+          <InfoCard label="Email" value={vendor.email} icon={<Mail className="w-3 h-3" />} />
         )}
         {vendor.phone && (
+          <InfoCard label="Phone" value={vendor.phone} icon={<Phone className="w-3 h-3" />} />
+        )}
+        {vendor.phone2 && (
+          <InfoCard label="Phone 2" value={vendor.phone2} icon={<Phone className="w-3 h-3" />} />
+        )}
+        {vendor.phone3 && (
+          <InfoCard label="Phone 3" value={vendor.phone3} icon={<Phone className="w-3 h-3" />} />
+        )}
+        {location && (
+          <InfoCard label="Location" value={location} icon={<MapPin className="w-3 h-3" />} />
+        )}
+        {address && (
+          <InfoCard label="Address" value={address} icon={<MapPin className="w-3 h-3" />} />
+        )}
+        {vendor.websiteUrl && (
           <div className="flex flex-col gap-1 p-4 border rounded-xl bg-card">
-            <span className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" /> Phone</span>
-            <span className="font-medium text-sm">{vendor.phone}</span>
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Globe className="w-3 h-3" /> Website
+            </span>
+            <a
+              href={vendor.websiteUrl.startsWith("http") ? vendor.websiteUrl : `https://${vendor.websiteUrl}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-sm text-blue-600 hover:underline break-words"
+            >
+              {vendor.websiteUrl}
+            </a>
           </div>
         )}
+        {vendor.startDate && (
+          <InfoCard
+            label="Partner Since"
+            value={format(new Date(vendor.startDate), "MMM d, yyyy")}
+            icon={<Calendar className="w-3 h-3" />}
+          />
+        )}
       </div>
+
+      {/* Availability notes */}
+      {vendor.availabilityNotes && (
+        <div className="flex flex-col gap-1 p-4 border rounded-xl bg-card">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Clock className="w-3 h-3" /> Availability
+          </span>
+          <p className="text-sm whitespace-pre-wrap">{vendor.availabilityNotes}</p>
+        </div>
+      )}
+
+      {/* Notes */}
+      {vendor.notes && (
+        <div className="flex flex-col gap-1 p-4 border rounded-xl bg-card">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <StickyNote className="w-3 h-3" /> Notes
+          </span>
+          <p className="text-sm whitespace-pre-wrap">{vendor.notes}</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Inspectors */}
@@ -111,9 +197,7 @@ export default async function VendorDetailPage({ params }: Props) {
                       <span className="text-xs text-muted-foreground">{inspector.email}</span>
                     )}
                   </div>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_COLORS[inspector.status] ?? ""}`}
-                  >
+                  <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_COLORS[inspector.status] ?? ""}`}>
                     {inspector.status}
                   </span>
                 </div>
@@ -121,7 +205,7 @@ export default async function VendorDetailPage({ params }: Props) {
             </div>
           )}
           <Link
-            href={`/inspectors/new`}
+            href="/inspectors/new"
             className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5 self-start")}
           >
             Add Inspector

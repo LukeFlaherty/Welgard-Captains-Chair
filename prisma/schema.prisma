@@ -60,18 +60,34 @@ model Member {
 }
 
 model Vendor {
-  id             String       @id @default(cuid())
-  companyName    String
-  inspectorName  String?
-  email          String?
-  phone          String?
-  licenseNumber  String?
-  ghlReferenceId String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  inspections    Inspection[]
-  inspectors     Inspector[]
-  users          User[]
+  id                  String       @id @default(cuid())
+  companyName         String
+  vendorType          String?      // Contractor | Inspector | Water Treatment | Real Estate Agent | Admin | Other
+  primaryContact      String?
+  email               String?
+  phone               String?
+  phone2              String?
+  phone3              String?
+  streetAddress       String?
+  streetAddress2      String?
+  city                String?
+  county              String?
+  state               String?
+  zip                 String?
+  taxId               String?
+  licenseNumber       String?
+  rating              String?      // 1 | 2 | 3 | Prospect
+  notes               String?
+  availableAfterHours Boolean      @default(false)
+  availabilityNotes   String?
+  startDate           DateTime?
+  websiteUrl          String?
+  ghlReferenceId      String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  inspections         Inspection[]
+  inspectors          Inspector[]
+  users               User[]
 }
 
 // ─── Primary entity ───────────────────────────────────────────────────────────

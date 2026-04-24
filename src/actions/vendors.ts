@@ -15,20 +15,29 @@ async function requireAdminOrTeamMember() {
 
 export type VendorFormValues = {
   companyName: string;
-  inspectorName?: string;
+  vendorType?: string;
+  primaryContact?: string;
   email?: string;
   phone?: string;
+  phone2?: string;
   licenseNumber?: string;
+  notes?: string;
+  websiteUrl?: string;
   ghlReferenceId?: string;
 };
 
 export type VendorRow = {
   id: string;
   companyName: string;
-  inspectorName: string | null;
+  vendorType: string | null;
+  primaryContact: string | null;
   email: string | null;
   phone: string | null;
+  phone2: string | null;
   licenseNumber: string | null;
+  rating: string | null;
+  city: string | null;
+  state: string | null;
   ghlReferenceId: string | null;
   createdAt: Date;
   _count: {
@@ -42,7 +51,20 @@ export async function listVendors(): Promise<VendorRow[]> {
   await requireAdminOrTeamMember();
   return db.vendor.findMany({
     orderBy: { companyName: "asc" },
-    include: {
+    select: {
+      id: true,
+      companyName: true,
+      vendorType: true,
+      primaryContact: true,
+      email: true,
+      phone: true,
+      phone2: true,
+      licenseNumber: true,
+      rating: true,
+      city: true,
+      state: true,
+      ghlReferenceId: true,
+      createdAt: true,
       _count: { select: { inspectors: true, inspections: true, users: true } },
     },
   });
@@ -72,10 +94,14 @@ export async function createVendor(
     const vendor = await db.vendor.create({
       data: {
         companyName: values.companyName,
-        inspectorName: values.inspectorName || null,
+        vendorType: values.vendorType || null,
+        primaryContact: values.primaryContact || null,
         email: values.email || null,
         phone: values.phone || null,
+        phone2: values.phone2 || null,
         licenseNumber: values.licenseNumber || null,
+        notes: values.notes || null,
+        websiteUrl: values.websiteUrl || null,
         ghlReferenceId: values.ghlReferenceId || null,
       },
     });
@@ -97,10 +123,14 @@ export async function updateVendor(
       where: { id },
       data: {
         companyName: values.companyName,
-        inspectorName: values.inspectorName || null,
+        vendorType: values.vendorType || null,
+        primaryContact: values.primaryContact || null,
         email: values.email || null,
         phone: values.phone || null,
+        phone2: values.phone2 || null,
         licenseNumber: values.licenseNumber || null,
+        notes: values.notes || null,
+        websiteUrl: values.websiteUrl || null,
         ghlReferenceId: values.ghlReferenceId || null,
       },
     });

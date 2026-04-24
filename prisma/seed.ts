@@ -34,7 +34,8 @@ async function main() {
   const vendor1 = await prisma.vendor.create({
     data: {
       companyName: "ClearWater Inspection Services",
-      inspectorName: "Marcus Webb",
+      vendorType: "Inspector",
+      primaryContact: "Marcus Webb",
       email: "marcus@clearwater-inspect.com",
       phone: "555-201-4400",
       licenseNumber: "WI-2024-0881",
@@ -44,7 +45,8 @@ async function main() {
   const vendor2 = await prisma.vendor.create({
     data: {
       companyName: "Summit Well & Pump",
-      inspectorName: "Diana Reyes",
+      vendorType: "Contractor",
+      primaryContact: "Diana Reyes",
       email: "diana@summitwellpump.com",
       phone: "555-308-7722",
       licenseNumber: "WI-2023-0445",
