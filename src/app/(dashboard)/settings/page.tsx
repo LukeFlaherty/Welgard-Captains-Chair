@@ -4,6 +4,7 @@ import { Settings, Users, BookOpen } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { IntakeLinkCard } from "@/components/settings/intake-link-card";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -19,6 +20,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <IntakeLinkCard />
         <Card className="hover:border-primary/40 transition-colors">
           <CardHeader>
             <div className="flex items-center gap-2">
