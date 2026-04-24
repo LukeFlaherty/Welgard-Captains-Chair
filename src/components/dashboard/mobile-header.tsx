@@ -11,7 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { navItems } from "./nav-config";
 
-export function MobileHeader({ role }: { role: string }) {
+type UserInfo = { name: string | null; email: string | null; companyName: string | null };
+
+export function MobileHeader({ role, user }: { role: string; user: UserInfo }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -29,13 +31,25 @@ export function MobileHeader({ role }: { role: string }) {
           height={120}
           className="rounded-lg"
         />
-        <button
-          onClick={() => setOpen(true)}
-          className="text-primary-foreground p-1 -mr-1"
-          aria-label="Open navigation"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-sm font-medium text-primary-foreground leading-tight truncate max-w-[160px]">
+              {user.companyName ?? user.name ?? user.email ?? "—"}
+            </p>
+            {user.email && (user.companyName || user.name) && (
+              <p className="text-[11px] text-primary-foreground/70 truncate max-w-[160px]">
+                {user.email}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => setOpen(true)}
+            className="text-primary-foreground p-1 -mr-1"
+            aria-label="Open navigation"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
       <Sheet open={open} onOpenChange={setOpen}>
@@ -95,6 +109,14 @@ export function MobileHeader({ role }: { role: string }) {
 
           {/* Footer */}
           <div className="px-3 py-3 border-t mt-auto flex flex-col gap-1">
+            <div className="px-3 py-2 flex flex-col gap-0.5">
+              <span className="text-sm font-medium text-foreground truncate">
+                {user.companyName ?? user.name ?? user.email ?? "—"}
+              </span>
+              {user.email && (user.companyName || user.name) && (
+                <span className="text-[11px] text-muted-foreground truncate">{user.email}</span>
+              )}
+            </div>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-full text-left"

@@ -10,7 +10,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { navItems } from "./nav-config";
 
-export function Sidebar({ role }: { role: string }) {
+type UserInfo = { name: string | null; email: string | null; companyName: string | null };
+
+export function Sidebar({ role, user }: { role: string; user: UserInfo }) {
   const pathname = usePathname();
 
   const visibleItems = navItems.filter(
@@ -70,6 +72,14 @@ export function Sidebar({ role }: { role: string }) {
 
       {/* Footer */}
       <div className="px-3 py-3 border-t flex flex-col gap-1">
+        <div className="px-3 py-2 flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-foreground truncate">
+            {user.companyName ?? user.name ?? user.email ?? "—"}
+          </span>
+          {user.email && (user.companyName || user.name) && (
+            <span className="text-[11px] text-muted-foreground truncate">{user.email}</span>
+          )}
+        </div>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-full text-left"

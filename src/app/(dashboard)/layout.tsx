@@ -9,12 +9,17 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
   const role = session?.user?.role ?? "vendor";
+  const user = {
+    name: session?.user?.name ?? null,
+    email: session?.user?.email ?? null,
+    companyName: session?.user?.companyName ?? null,
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar role={role} />
+      <Sidebar role={role} user={user} />
       <div className="flex flex-col flex-1 overflow-hidden">
-        <MobileHeader role={role} />
+        <MobileHeader role={role} user={user} />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
