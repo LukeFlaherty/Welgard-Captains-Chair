@@ -3,17 +3,27 @@ import Link from "next/link";
 import { Plus, Building2 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { VendorTable } from "@/components/vendors/vendor-table";
-import { listVendors } from "@/actions/vendors";
+import { listVendors, getVendorStats } from "@/actions/vendors";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Vendors" };
 export const dynamic = "force-dynamic";
 
-export default async function VendorsPage() {
-  const vendors = await listVendors();
+const PAGE_SIZE = 100;
 
-  const totalInspectors = vendors.reduce((sum, v) => sum + v._count.inspectors, 0);
-  const totalInspections = vendors.reduce((sum, v) => sum + v._count.inspections, 0);
+type Props = {
+  searchParams: Promise<{ q?: string; page?: string }>;
+};
+
+export default async function VendorsPage({ searchParams }: Props) {
+  const { q, page: pageParam } = await searchParams;
+  const search = q?.trim() || "";
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
+
+  const [{ data: vendors, total }, stats] = await Promise.all([
+    listVendors({ search: search || undefined, page, pageSize: PAGE_SIZE }),
+    getVendorStats(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-8 max-w-7xl mx-auto w-full">
@@ -33,22 +43,26 @@ export default async function VendorsPage() {
         </Link>
       </div>
 
-      {vendors.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {[
-            { label: "Total Companies", value: vendors.length },
-            { label: "Total Inspectors", value: totalInspectors },
-            { label: "Total Inspections", value: totalInspections },
-          ].map((stat) => (
-            <div key={stat.label} className="flex flex-col gap-1 p-4 border rounded-xl bg-card">
-              <span className="text-xs text-muted-foreground">{stat.label}</span>
-              <span className="text-2xl font-bold">{stat.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {[
+          { label: "Total Companies", value: stats.total },
+          { label: "Total Inspectors", value: stats.totalInspectors },
+          { label: "Total Inspections", value: stats.totalInspections },
+        ].map((stat) => (
+          <div key={stat.label} className="flex flex-col gap-1 p-4 border rounded-xl bg-card">
+            <span className="text-xs text-muted-foreground">{stat.label}</span>
+            <span className="text-2xl font-bold">{stat.value}</span>
+          </div>
+        ))}
+      </div>
 
-      <VendorTable rows={vendors} />
+      <VendorTable
+        rows={vendors}
+        total={total}
+        page={page}
+        pageSize={PAGE_SIZE}
+        search={search}
+      />
     </div>
   );
 }

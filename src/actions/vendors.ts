@@ -16,6 +16,7 @@ async function requireAdminOrTeamMember() {
 export type VendorFormValues = {
   companyName: string;
   vendorType?: string;
+  rating?: string;
   primaryContact?: string;
   email?: string;
   phone?: string;
@@ -47,27 +48,59 @@ export type VendorRow = {
   };
 };
 
-export async function listVendors(): Promise<VendorRow[]> {
+const VENDOR_SELECT = {
+  id: true,
+  companyName: true,
+  vendorType: true,
+  primaryContact: true,
+  email: true,
+  phone: true,
+  phone2: true,
+  licenseNumber: true,
+  rating: true,
+  city: true,
+  state: true,
+  ghlReferenceId: true,
+  createdAt: true,
+  _count: { select: { inspectors: true, inspections: true, users: true } },
+} as const;
+
+export async function listVendors(opts: {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+} = {}): Promise<{ data: VendorRow[]; total: number }> {
   await requireAdminOrTeamMember();
-  return db.vendor.findMany({
-    orderBy: { companyName: "asc" },
-    select: {
-      id: true,
-      companyName: true,
-      vendorType: true,
-      primaryContact: true,
-      email: true,
-      phone: true,
-      phone2: true,
-      licenseNumber: true,
-      rating: true,
-      city: true,
-      state: true,
-      ghlReferenceId: true,
-      createdAt: true,
-      _count: { select: { inspectors: true, inspections: true, users: true } },
-    },
-  });
+  const { search, page = 1, pageSize = 100 } = opts;
+  const skip = (page - 1) * pageSize;
+
+  const where = search
+    ? {
+        OR: [
+          { companyName: { contains: search, mode: "insensitive" as const } },
+          { primaryContact: { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
+          { city: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+
+  const [data, total] = await Promise.all([
+    db.vendor.findMany({ where, orderBy: { companyName: "asc" }, skip, take: pageSize, select: VENDOR_SELECT }),
+    db.vendor.count({ where }),
+  ]);
+
+  return { data, total };
+}
+
+export async function getVendorStats(): Promise<{ total: number; totalInspectors: number; totalInspections: number }> {
+  await requireAdminOrTeamMember();
+  const [total, inspectors, inspections] = await Promise.all([
+    db.vendor.count(),
+    db.inspector.count(),
+    db.inspection.count(),
+  ]);
+  return { total, totalInspectors: inspectors, totalInspections: inspections };
 }
 
 export async function getVendor(id: string) {
@@ -95,6 +128,7 @@ export async function createVendor(
       data: {
         companyName: values.companyName,
         vendorType: values.vendorType || null,
+        rating: values.rating || null,
         primaryContact: values.primaryContact || null,
         email: values.email || null,
         phone: values.phone || null,
@@ -124,6 +158,7 @@ export async function updateVendor(
       data: {
         companyName: values.companyName,
         vendorType: values.vendorType || null,
+        rating: values.rating || null,
         primaryContact: values.primaryContact || null,
         email: values.email || null,
         phone: values.phone || null,

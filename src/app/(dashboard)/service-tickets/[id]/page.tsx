@@ -203,8 +203,8 @@ export default async function ServiceTicketDetailPage({ params }: Props) {
         )}
       </div>
 
-      {/* GHL buttons (team/admin only) */}
-      {isTeam && (
+      {/* GHL buttons (team/admin only, completed tickets only) */}
+      {isTeam && ticket.status === "completed" && (
         <GhlButtons ticketId={ticket.id} />
       )}
 
@@ -256,9 +256,6 @@ export default async function ServiceTicketDetailPage({ params }: Props) {
         {/* Diagnostic Checklist */}
         <div className="p-5">
           <Section title="Diagnostic Checklist" icon={FileText}>
-            {ticket.rightOfFirstRefusal != null && (
-              <Row label="Right of First Refusal" value={ticket.rightOfFirstRefusal ? "Yes" : "No"} />
-            )}
             {ticket.valvesOpen && <Row label="Valves Open" value={TRI_LABEL[ticket.valvesOpen] ?? ticket.valvesOpen} />}
             {ticket.filterClogged && <Row label="Filter Clogged" value={TRI_LABEL[ticket.filterClogged] ?? ticket.filterClogged} />}
             {ticket.circuitBreakerReset && <Row label="Circuit Breaker Reset" value={TRI_LABEL[ticket.circuitBreakerReset] ?? ticket.circuitBreakerReset} />}
@@ -269,10 +266,12 @@ export default async function ServiceTicketDetailPage({ params }: Props) {
         </div>
 
         {/* Technician Response */}
-        {(ticket.technicianResponse || ticket.amperageReading != null) && (
+        {(ticket.faultIdentified || ticket.repairsPerformed || ticket.technicianResponse || ticket.amperageReading != null) && (
           <div className="p-5">
             <Section title="Technician Response" icon={Building2}>
-              <FullRow label="Response Notes" value={ticket.technicianResponse} />
+              <FullRow label="Fault Identified" value={ticket.faultIdentified} />
+              <FullRow label="Repairs Performed" value={ticket.repairsPerformed} />
+              <FullRow label="Additional Notes" value={ticket.technicianResponse} />
               {ticket.amperageReading != null && <Row label="Amperage Reading" value={`${ticket.amperageReading} amps`} />}
               {ticket.yieldValue != null && <Row label="Yield" value={String(ticket.yieldValue)} />}
               {ticket.depthPerCustomer != null && <Row label="Depth Per Customer" value={`${ticket.depthPerCustomer} ft`} />}
@@ -319,40 +318,48 @@ export default async function ServiceTicketDetailPage({ params }: Props) {
       </div>
 
       {/* Address History */}
-      {addressHistory.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <History className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Address History — {ticket.streetAddress}
-            </h2>
-            <Badge variant="secondary" className="text-xs">{addressHistory.length}</Badge>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <History className="w-4 h-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Address History — {ticket.streetAddress}
+          </h2>
+          <Badge variant="secondary" className="text-xs">{addressHistory.length}</Badge>
+        </div>
+        {addressHistory.length === 0 ? (
+          <div className="rounded-xl border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+            No other tickets at this address.
           </div>
+        ) : (
           <div className="flex flex-col gap-2">
             {addressHistory.map((h) => (
               <HistoryCard key={h.id} h={h} />
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Email History */}
-      {emailHistory.length > 0 && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <Mail className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Member History — {ticket.memberEmail}
-            </h2>
-            <Badge variant="secondary" className="text-xs">{emailHistory.length}</Badge>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <Mail className="w-4 h-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Member History — {ticket.memberEmail ?? ticket.memberFirstName + " " + ticket.memberLastName}
+          </h2>
+          <Badge variant="secondary" className="text-xs">{emailHistory.length}</Badge>
+        </div>
+        {emailHistory.length === 0 ? (
+          <div className="rounded-xl border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+            No other tickets for this member.
           </div>
+        ) : (
           <div className="flex flex-col gap-2">
             {emailHistory.map((h) => (
               <HistoryCard key={h.id} h={h} />
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

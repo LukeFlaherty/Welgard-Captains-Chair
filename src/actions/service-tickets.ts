@@ -51,6 +51,8 @@ export type ServiceTicketFormValues = {
   pressureGauge: boolean | null;
 
   // Tech response
+  faultIdentified: string;
+  repairsPerformed: string;
   technicianResponse: string;
   amperageReading: number | null;
   yieldValue: number | null;
@@ -113,6 +115,8 @@ function buildData(values: ServiceTicketFormValues) {
     lowPressureSwitch:  values.lowPressureSwitch || null,
     backwashCycle:      values.backwashCycle || null,
     pressureGauge:      values.pressureGauge ?? null,
+    faultIdentified:    values.faultIdentified || null,
+    repairsPerformed:   values.repairsPerformed || null,
     technicianResponse: values.technicianResponse || null,
     amperageReading:    values.amperageReading,
     yieldValue:         values.yieldValue,

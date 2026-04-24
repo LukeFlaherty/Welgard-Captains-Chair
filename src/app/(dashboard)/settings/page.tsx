@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { IntakeLinkCard } from "@/components/settings/intake-link-card";
+import { ServiceIntakeLinkCard } from "@/components/settings/service-intake-link-card";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -21,6 +22,7 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <IntakeLinkCard />
+        <ServiceIntakeLinkCard />
         <Card className="hover:border-primary/40 transition-colors">
           <CardHeader>
             <div className="flex items-center gap-2">

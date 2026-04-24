@@ -313,7 +313,9 @@ model ServiceTicket {
   pressureGauge       Boolean?
 
   // Technician response (team/admin fills post-service)
-  technicianResponse String?
+  faultIdentified    String?
+  repairsPerformed   String?
+  technicianResponse String?  // additional notes
   amperageReading    Float?
   yieldValue         Float?
   depthPerCustomer   Float?
