@@ -609,6 +609,48 @@ export default function InspectionLogicPage() {
               </p>
             </CardContent>
           </Card>
+
+          <Card className="border-blue-100">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Info className="w-4 h-4 text-blue-500" />
+                External-Only Items (fail → Standard)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <p className="text-xs text-muted-foreground mb-2">
+                When only external equipment items need attention (and no major or minor items fail), the result is <strong>Standard</strong>. These items are fixable — addressing them may allow the well to qualify for Superior or Premium.
+              </p>
+              <ul className="text-xs flex flex-col gap-1 text-muted-foreground list-disc list-inside">
+                <li>Well Cap condition</li>
+                <li>Casing Height Above Ground</li>
+                <li>Well Obstructions</li>
+                <li>Well Depth (&gt; 500 ft)</li>
+                <li>Well Type (non-drilled/bored but not in hand dug / stick / other)</li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card className="border-red-100">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-red-500" />
+                Ineligible States
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <p className="text-xs text-muted-foreground mb-2">
+                Members in the following states are not eligible for WelGard Premium or Superior coverage regardless of inspection results. Only Navigator Pro coverage is available in these states.
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {["California", "Texas", "Florida"].map((s) => (
+                  <span key={s} className="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-xs text-red-800 font-medium">
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

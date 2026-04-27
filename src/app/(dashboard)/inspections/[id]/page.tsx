@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/inspections/status-badge";
 import { CategoryBadge } from "@/components/inspections/category-badge";
 import { GeneratePdfButton } from "@/components/inspections/generate-pdf-button";
 import { PdfHistoryTimeline } from "@/components/inspections/pdf-history-timeline";
+import { GhlSyncButton } from "@/components/inspections/ghl-sync-button";
 import { getInspection } from "@/actions/inspections";
 import { auth } from "@/auth";
 import { STATUS_DESCRIPTIONS, TIER_LABELS } from "@/lib/rules-engine";
@@ -131,7 +132,7 @@ export default async function InspectionViewPage({
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-start gap-2 flex-wrap">
           <Link
             href={`/inspections/${id}/edit`}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
@@ -140,6 +141,13 @@ export default async function InspectionViewPage({
             Edit
           </Link>
           <GeneratePdfButton inspectionId={id} existingPdfUrl={inspection.generatedPdfUrl} reportId={inspection.reportId} />
+          <GhlSyncButton
+            inspectionId={id}
+            ghlSyncStatus={inspection.ghlSyncStatus}
+            lastSyncedAt={inspection.lastSyncedAt}
+            ghlContactId={inspection.ghlContactId}
+            hasEmail={!!inspection.homeownerEmail}
+          />
         </div>
       </div>
 

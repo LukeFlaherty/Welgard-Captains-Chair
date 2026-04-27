@@ -8,6 +8,12 @@ import {
   getActor, logActivity, diffObjects, fieldLabel,
   INSPECTION_SKIP_FIELDS,
 } from "@/lib/activity";
+import {
+  searchContactByEmail,
+  fetchCustomFieldMap,
+  updateContactCustomFields,
+  buildCustomFieldPayload,
+} from "@/lib/ghl";
 import type { InspectionFormValues, YieldTestFormValues } from "@/types/inspection";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -371,4 +377,133 @@ export async function savePdfUrl(id: string, url: string): Promise<{ error?: str
     console.error("[savePdfUrl]", err);
     return { error: "Failed to save PDF URL." };
   }
+}
+
+export async function syncInspectionToGhl(
+  id: string
+): Promise<{ ghlContactId?: string; fieldsUpdated?: number; error?: string }> {
+  if (!process.env.GHL_API_KEY) {
+    return { error: "GHL integration is not configured (missing API key)." };
+  }
+
+  const inspection = await db.inspection.findUnique({
+    where: { id },
+    include: { inspector: true },
+  });
+
+  if (!inspection) return { error: "Inspection not found." };
+
+  const label = `${inspection.homeownerName} – ${inspection.propertyAddress}`;
+  const actor = await getActor();
+
+  if (!inspection.homeownerEmail) {
+    return { error: "No homeowner email on this inspection — cannot look up a GHL contact." };
+  }
+
+  // ─── 1. Find contact by email ──────────────────────────────────────────────
+  let contact;
+  try {
+    contact = await searchContactByEmail(inspection.homeownerEmail);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[syncInspectionToGhl] contact search error:", msg);
+    await db.inspection.update({ where: { id }, data: { ghlSyncStatus: "error" } });
+    await logActivity({
+      actor,
+      entityType: "inspection",
+      entityId: id,
+      entityLabel: label,
+      action: "synced",
+      newValue: "error",
+      description: `GHL sync failed for ${label}: could not reach GHL — ${msg}`,
+    });
+    return { error: `Could not reach GHL: ${msg}` };
+  }
+
+  if (!contact) {
+    await db.inspection.update({ where: { id }, data: { ghlSyncStatus: "error" } });
+    await logActivity({
+      actor,
+      entityType: "inspection",
+      entityId: id,
+      entityLabel: label,
+      action: "synced",
+      newValue: "error",
+      description: `GHL sync failed for ${label}: no contact found with email "${inspection.homeownerEmail}"`,
+    });
+    return { error: `No GHL contact found with email "${inspection.homeownerEmail}". Make sure the contact exists in GHL first.` };
+  }
+
+  // ─── 2. Build field payload ────────────────────────────────────────────────
+  let fieldMap: Map<string, string>;
+  try {
+    fieldMap = await fetchCustomFieldMap();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[syncInspectionToGhl] custom field fetch error:", msg);
+    await db.inspection.update({ where: { id }, data: { ghlSyncStatus: "error" } });
+    await logActivity({
+      actor,
+      entityType: "inspection",
+      entityId: id,
+      entityLabel: label,
+      action: "synced",
+      newValue: "error",
+      description: `GHL sync failed for ${label}: could not fetch custom fields — ${msg}`,
+    });
+    return { error: `Could not fetch GHL custom fields: ${msg}` };
+  }
+
+  const customFields = buildCustomFieldPayload(inspection, fieldMap);
+
+  if (customFields.length === 0) {
+    return { error: "No matching GHL custom fields found. Check that the Well Details fields exist in your GHL location." };
+  }
+
+  // ─── 3. Push to GHL ───────────────────────────────────────────────────────
+  try {
+    await updateContactCustomFields(contact.id, customFields);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[syncInspectionToGhl] contact update error:", msg);
+    await db.inspection.update({
+      where: { id },
+      data: { ghlContactId: contact.id, ghlSyncStatus: "error" },
+    });
+    await logActivity({
+      actor,
+      entityType: "inspection",
+      entityId: id,
+      entityLabel: label,
+      action: "synced",
+      newValue: "error",
+      description: `GHL sync failed for ${label}: found contact ${contact.id} but field update failed — ${msg}`,
+    });
+    return { error: `Found GHL contact but the field update failed: ${msg}` };
+  }
+
+  // ─── 4. Persist sync state ────────────────────────────────────────────────
+  await db.inspection.update({
+    where: { id },
+    data: {
+      ghlContactId:  contact.id,
+      ghlLocationId: process.env.GHL_LOCATION_ID ?? null,
+      ghlSyncStatus: "synced",
+      lastSyncedAt:  new Date(),
+    },
+  });
+
+  revalidatePath(`/inspections/${id}`);
+
+  await logActivity({
+    actor,
+    entityType: "inspection",
+    entityId: id,
+    entityLabel: label,
+    action: "synced",
+    newValue: "synced",
+    description: `Synced ${customFields.length} fields to GHL contact ${contact.id} for ${label}`,
+  });
+
+  return { ghlContactId: contact.id, fieldsUpdated: customFields.length };
 }
