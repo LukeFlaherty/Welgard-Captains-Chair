@@ -84,6 +84,7 @@ export type SyncableInspection = {
   internalEquipmentStatus: string | null;
   wellYieldStatus: string | null;
   cycleTimeStatus: string | null;
+  generatedPdfUrl: string | null;
 };
 
 // ─── API calls ────────────────────────────────────────────────────────────────
@@ -252,6 +253,9 @@ export function buildCustomFieldPayload(
   add("internal_equipment_observation", inspection.internalEquipmentStatus);
   add("well_yield_observation", inspection.wellYieldStatus);
   add("cycle_time_observation", inspection.cycleTimeStatus);
+
+  // PDF report (WC Captains Chair folder)
+  add("wc_captains_chair_inspection_report", inspection.generatedPdfUrl);
 
   return payload;
 }
