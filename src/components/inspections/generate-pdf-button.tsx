@@ -4,7 +4,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { FileDown, Loader2, ExternalLink, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { savePdfUrl } from "@/actions/inspections";
 import { useRouter } from "next/navigation";
 
 async function downloadPdf(url: string, filename: string) {
@@ -41,7 +40,6 @@ export function GeneratePdfButton({
       if (!res.ok || json.error) {
         throw new Error(json.error ?? "PDF generation failed.");
       }
-      await savePdfUrl(inspectionId, json.url);
       toast.success("PDF report generated successfully.");
       router.refresh();
     } catch (err) {

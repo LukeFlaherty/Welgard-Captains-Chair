@@ -10,8 +10,11 @@ import {
 import type { Inspection, InspectionPhoto, YieldTest } from "@/generated/prisma";
 import { STATUS_LABELS, STATUS_DESCRIPTIONS, TIER_LABELS } from "@/lib/rules-engine";
 import {
-  wellTypeLabel, pumpTypeLabel, obstructionLabel, wellCapLabel,
-  tankCondLabel, controlBoxLabel, pressureCompLabel,
+  wellTypeLabel, pumpTypeLabel, pumpManufacturerLabel, pumpHpLabel,
+  obstructionLabel, wellCapLabel, casingTypeLabel, casingSizeLabel,
+  wellDataSourceLabel, tankCondLabel, tankBrandLabel, psiSettingsLabel,
+  waterTreatmentLabel, wireTypeLabel, controlBoxLabel, pressureCompLabel,
+  PHOTO_LABELS,
 } from "@/config/inspection-fields";
 
 // ─── Brand Colors ─────────────────────────────────────────────────────────────
@@ -124,7 +127,6 @@ const s = StyleSheet.create({
   gridCell: { width: "50%", paddingRight: 16, marginBottom: 10 },
   cellLabel: { fontSize: 7.5, color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2 },
   cellValue: { fontSize: 10, color: C.text },
-  // Category status rows
   catRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -135,17 +137,14 @@ const s = StyleSheet.create({
   },
   catLabel: { fontSize: 9, color: C.textLight },
   catBadge: { fontSize: 8, fontFamily: "Helvetica-Bold", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 },
-  // Computed value chips
   computedRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
   computedChip: { borderRadius: 6, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, padding: 8, minWidth: 100 },
   computedLabel: { fontSize: 7, color: C.muted, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 2 },
   computedValue: { fontSize: 13, fontFamily: "Helvetica-Bold", color: C.text },
   computedUnit: { fontSize: 8, color: C.muted },
-  // Yield test table
   tableHeader: { flexDirection: "row", borderBottomWidth: 1.5, borderBottomColor: C.brand, paddingBottom: 3, marginBottom: 4 },
   tableRow: { flexDirection: "row", paddingVertical: 3, borderBottomWidth: 1, borderBottomColor: C.border },
   tableCell: { fontSize: 8.5, color: C.text },
-  // Notes
   noteBox: { backgroundColor: C.bg, borderRadius: 6, padding: 10, marginBottom: 8 },
   noteLabel: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: C.muted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
   noteText: { fontSize: 9, color: C.textLight, lineHeight: 1.5 },
@@ -158,7 +157,8 @@ const s = StyleSheet.create({
   photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   photoItem: { width: "31%", gap: 3 },
   photoImg: { width: "100%", height: 90, borderRadius: 4, objectFit: "cover" },
-  photoCaption: { fontSize: 7, color: C.muted, textAlign: "center", textTransform: "capitalize" },
+  photoPlaceholder: { width: "100%", height: 90, borderRadius: 4, borderWidth: 1, borderColor: C.border, backgroundColor: C.bg, alignItems: "center", justifyContent: "center" },
+  photoCaption: { fontSize: 7, color: C.muted, textAlign: "center" },
   disclaimer: { backgroundColor: C.brandLight, borderRadius: 6, borderLeftWidth: 3, borderLeftColor: C.brand, padding: 12, marginTop: 8 },
   disclaimerTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: C.brand, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
   disclaimerText: { fontSize: 7.5, color: C.textLight, lineHeight: 1.6 },
@@ -168,11 +168,19 @@ const s = StyleSheet.create({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function DetailCell({ label, value }: { label: string; value?: string | number | null }) {
+function DetailCell({ label, value }: { label: string; value?: string | number | boolean | null }) {
+  let display: string;
+  if (value === null || value === undefined || value === "") {
+    display = "—";
+  } else if (typeof value === "boolean") {
+    display = value ? "Yes" : "No";
+  } else {
+    display = String(value);
+  }
   return (
     <View style={s.gridCell}>
       <Text style={s.cellLabel}>{label}</Text>
-      <Text style={s.cellValue}>{value ?? "—"}</Text>
+      <Text style={s.cellValue}>{display}</Text>
     </View>
   );
 }
@@ -211,6 +219,18 @@ function ComputedChip({ label, value, unit }: { label: string; value?: number | 
   );
 }
 
+function NoteBox({ label, value, alert }: { label: string; value?: string | null; alert?: boolean }) {
+  const boxStyle = alert ? s.alertBox : s.noteBox;
+  const labelStyle = alert ? s.alertLabel : s.noteLabel;
+  const textStyle = alert ? s.alertText : s.noteText;
+  return (
+    <View wrap={false} style={boxStyle}>
+      <Text style={labelStyle}>{label}</Text>
+      <Text style={textStyle}>{value || "—"}</Text>
+    </View>
+  );
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Props = {
@@ -231,13 +251,14 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
   const inspectionDate = new Date(inspection.inspectionDate).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
   const propertyPhoto = inspection.photos.find((p) => p.label === "property_front");
-  const otherPhotos = inspection.photos.filter((p) => p.label !== "property_front");
 
-  const hasNotes =
-    inspection.inspectorNotes ||
-    inspection.requiredRepairs ||
-    inspection.recommendedRepairs ||
-    inspection.memberFacingSummary;
+  const Footer = () => (
+    <View style={s.footer} fixed>
+      <Text style={s.footerText}>Welgard Well Warranty Operations · {inspection.reportId ?? "Draft"}</Text>
+      <Text style={s.footerText}>Confidential — For authorized use only</Text>
+      <Text style={s.footerText} render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
+    </View>
+  );
 
   return (
     <Document
@@ -246,7 +267,7 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
       subject="Residential Well Inspection Report"
     >
       {/* ══════════════════════════════════════════════════════════
-          PAGE 1 — Cover + Member/Property + Status Summary
+          PAGE 1 — Cover + Member/Property + Inspection Info + Status
           ══════════════════════════════════════════════════════ */}
       <Page size="LETTER" style={s.page}>
         <View style={s.header}>
@@ -268,11 +289,12 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
         </View>
 
         <View style={s.body}>
+          {/* Cover photo */}
           {propertyPhoto ? (
             <Image src={propertyPhoto.url} style={s.coverPhoto} />
           ) : (
             <View style={[s.coverPhoto, { backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" }]}>
-              <Text style={{ fontSize: 10, color: C.muted, fontStyle: "italic" }}>No image provided of the home.</Text>
+              <Text style={{ fontSize: 10, color: C.muted, fontStyle: "italic" }}>No front-of-house photo provided.</Text>
             </View>
           )}
 
@@ -305,94 +327,25 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
           <View wrap={false} style={s.section}>
             <SectionTitle>Member & Property</SectionTitle>
             <View style={s.grid2}>
-              <DetailCell label="Owner Name" value={inspection.homeownerName} />
-              <DetailCell label="Email" value={inspection.homeownerEmail} />
-              <DetailCell label="Phone" value={inspection.homeownerPhone} />
-              <DetailCell
-                label="Property Address"
-                value={[inspection.propertyAddress, inspection.city, inspection.state, inspection.zip].filter(Boolean).join(", ")}
-              />
+              <DetailCell label="Owner Name"       value={inspection.homeownerName} />
+              <DetailCell label="Email"            value={inspection.homeownerEmail} />
+              <DetailCell label="Phone"            value={inspection.homeownerPhone} />
+              <DetailCell label="Property Address" value={inspection.propertyAddress} />
+              <DetailCell label="City"             value={inspection.city} />
+              <DetailCell label="State"            value={inspection.state} />
+              <DetailCell label="ZIP"              value={inspection.zip} />
             </View>
           </View>
 
-          {/* Inspection Source */}
+          {/* Inspection Info */}
           <View wrap={false} style={s.section}>
             <SectionTitle>Inspection Info</SectionTitle>
             <View style={s.grid2}>
-              <DetailCell label="Inspector" value={inspection.inspectorName} />
-              <DetailCell label="Company" value={inspection.inspectionCompany} />
+              <DetailCell label="Inspector"       value={inspection.inspectorName} />
+              <DetailCell label="Company"         value={inspection.inspectionCompany} />
               <DetailCell label="Inspection Date" value={inspectionDate} />
-              <DetailCell label="Report ID" value={inspection.reportId} />
-            </View>
-          </View>
-        </View>
-
-        <View style={s.footer} fixed>
-          <Text style={s.footerText}>Welgard Well Warranty Operations · {inspection.reportId ?? "Draft"}</Text>
-          <Text style={s.footerText}>Confidential — For authorized use only</Text>
-          <Text style={s.footerText} render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
-        </View>
-      </Page>
-
-      {/* ══════════════════════════════════════════════════════════
-          PAGE 2 — Well System + Category Assessment
-          ══════════════════════════════════════════════════════ */}
-      <Page size="LETTER" style={s.page}>
-        <View style={s.miniHeader}>
-          <Text style={s.miniHeaderText}>Well System & Inspection Assessment</Text>
-          <Text style={s.miniHeaderId}>{inspection.reportId ?? inspection.homeownerName}</Text>
-        </View>
-
-        <View style={s.body}>
-          {/* Well System */}
-          <View wrap={false} style={s.section}>
-            <SectionTitle>Well System</SectionTitle>
-            <View style={s.grid2}>
-              <DetailCell label="Well Type" value={wellTypeLabel(inspection.wellType)} />
-              <DetailCell label="Well Depth" value={inspection.wellDepthUnknown ? "Unknown" : inspection.wellDepthFt ? `${inspection.wellDepthFt} ft` : null} />
-              <DetailCell label="Pump Type" value={pumpTypeLabel(inspection.pumpType)} />
-            </View>
-          </View>
-
-          {/* Category Assessment */}
-          <View wrap={false} style={s.section}>
-            <SectionTitle>Inspection Category Results</SectionTitle>
-            <CategoryStatusRow label="External Equipment" status={inspection.externalEquipmentStatus} />
-            <CategoryStatusRow label="Internal Equipment" status={inspection.internalEquipmentStatus} />
-            <CategoryStatusRow label="Cycle Time"         status={inspection.cycleTimeStatus} />
-            <CategoryStatusRow label="Well Yield"         status={inspection.wellYieldStatus} />
-          </View>
-
-          {/* External Equipment detail */}
-          <View wrap={false} style={s.section}>
-            <SectionTitle>External Equipment</SectionTitle>
-            <View style={s.grid2}>
-              <DetailCell label="Well Obstructions"   value={obstructionLabel(inspection.wellObstructions)} />
-              <DetailCell label="Well Cap"            value={wellCapLabel(inspection.wellCap)} />
-              <DetailCell label="Casing Height Above Ground" value={inspection.casingHeightInches != null ? `${inspection.casingHeightInches} in` : null} />
-            </View>
-          </View>
-
-          {/* Internal Equipment detail */}
-          <View wrap={false} style={s.section}>
-            <SectionTitle>Internal Equipment</SectionTitle>
-            <View style={s.grid2}>
-              <DetailCell label="Amperage Reading"     value={inspection.amperageReading != null ? `${inspection.amperageReading} A` : null} />
-              <DetailCell label="Tank Condition"       value={tankCondLabel(inspection.tankCondition)} />
-              <DetailCell label="Control Box"          value={controlBoxLabel(inspection.controlBoxCondition)} />
-              <DetailCell label="Pressure Switch"      value={pressureCompLabel(inspection.pressureSwitch)} />
-              <DetailCell label="Pressure Gauge"       value={pressureCompLabel(inspection.pressureGauge)} />
-              <DetailCell label="Constant Pressure Sys." value={inspection.constantPressureSystem ? "Yes" : "No"} />
-            </View>
-          </View>
-
-          {/* Cycle Time */}
-          <View wrap={false} style={s.section}>
-            <SectionTitle>Cycle Test</SectionTitle>
-            <View style={s.grid2}>
-              <DetailCell label="Sec to High Reading" value={inspection.secondsToHighReading != null ? `${inspection.secondsToHighReading} s` : null} />
-              <DetailCell label="Sec to Low Reading"  value={inspection.secondsToLowReading != null ? `${inspection.secondsToLowReading} s` : null} />
-              <DetailCell label="Cycle Time (computed)" value={inspection.cycleTime != null ? `${inspection.cycleTime} s` : null} />
+              <DetailCell label="Report ID"       value={inspection.reportId} />
+              <DetailCell label="Activity"        value={inspection.activity} />
             </View>
           </View>
 
@@ -410,15 +363,89 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
           )}
         </View>
 
-        <View style={s.footer} fixed>
-          <Text style={s.footerText}>Welgard Well Warranty Operations · {inspection.reportId ?? "Draft"}</Text>
-          <Text style={s.footerText}>Confidential — For authorized use only</Text>
-          <Text style={s.footerText} render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
-        </View>
+        <Footer />
       </Page>
 
       {/* ══════════════════════════════════════════════════════════
-          PAGE 3 — Well Yield + Notes + Photos
+          PAGE 2 — Well System + External + Internal + Cycle + Category
+          ══════════════════════════════════════════════════════ */}
+      <Page size="LETTER" style={s.page}>
+        <View style={s.miniHeader}>
+          <Text style={s.miniHeaderText}>Well System & Inspection Assessment</Text>
+          <Text style={s.miniHeaderId}>{inspection.reportId ?? inspection.homeownerName}</Text>
+        </View>
+
+        <View style={s.body}>
+          {/* Category Assessment */}
+          <View wrap={false} style={s.section}>
+            <SectionTitle>Inspection Category Results</SectionTitle>
+            <CategoryStatusRow label="External Equipment" status={inspection.externalEquipmentStatus} />
+            <CategoryStatusRow label="Internal Equipment" status={inspection.internalEquipmentStatus} />
+            <CategoryStatusRow label="Cycle Time"         status={inspection.cycleTimeStatus} />
+            <CategoryStatusRow label="Well Yield"         status={inspection.wellYieldStatus} />
+          </View>
+
+          {/* Well System */}
+          <View wrap={false} style={s.section}>
+            <SectionTitle>Well System</SectionTitle>
+            <View style={s.grid2}>
+              <DetailCell label="Well Type"            value={wellTypeLabel(inspection.wellType)} />
+              <DetailCell label="Well Depth"           value={inspection.wellDepthUnknown ? "Unknown" : inspection.wellDepthFt ? `${inspection.wellDepthFt} ft` : null} />
+              <DetailCell label="Pump Type"            value={pumpTypeLabel(inspection.pumpType)} />
+              <DetailCell label="Pump Manufacturer"    value={pumpManufacturerLabel(inspection.pumpManufacturer)} />
+              <DetailCell label="Pump HP"              value={pumpHpLabel(inspection.pumpHp)} />
+              <DetailCell label="Distance from House"  value={inspection.distanceFromHouseFt != null ? `${inspection.distanceFromHouseFt} ft` : null} />
+              <DetailCell label="Data Source"          value={wellDataSourceLabel(inspection.wellDataSource)} />
+            </View>
+          </View>
+
+          {/* External Equipment */}
+          <View wrap={false} style={s.section}>
+            <SectionTitle>External Equipment</SectionTitle>
+            <View style={s.grid2}>
+              <DetailCell label="Well Obstructions"         value={obstructionLabel(inspection.wellObstructions)} />
+              <DetailCell label="Well Cap"                  value={wellCapLabel(inspection.wellCap)} />
+              <DetailCell label="Casing Height Above Ground" value={inspection.casingHeightInches != null ? `${inspection.casingHeightInches} in` : null} />
+              <DetailCell label="Casing Type"               value={casingTypeLabel(inspection.casingType)} />
+              <DetailCell label="Casing Size"               value={casingSizeLabel(inspection.casingSize)} />
+            </View>
+          </View>
+
+          {/* Internal Equipment */}
+          <View wrap={false} style={s.section}>
+            <SectionTitle>Internal Equipment</SectionTitle>
+            <View style={s.grid2}>
+              <DetailCell label="Amperage Reading"       value={inspection.amperageReading != null ? `${inspection.amperageReading} A` : null} />
+              <DetailCell label="Tank Condition"         value={tankCondLabel(inspection.tankCondition)} />
+              <DetailCell label="Tank Brand"             value={tankBrandLabel(inspection.tankBrand)} />
+              <DetailCell label="Tank Model"             value={inspection.tankModel} />
+              <DetailCell label="Tank Size"              value={inspection.tankSizeGal != null ? `${inspection.tankSizeGal} gal` : null} />
+              <DetailCell label="PSI Settings"           value={psiSettingsLabel(inspection.psiSettings)} />
+              <DetailCell label="Control Box"            value={controlBoxLabel(inspection.controlBoxCondition)} />
+              <DetailCell label="Pressure Switch"        value={pressureCompLabel(inspection.pressureSwitch)} />
+              <DetailCell label="Pressure Gauge"         value={pressureCompLabel(inspection.pressureGauge)} />
+              <DetailCell label="Constant Pressure Sys." value={inspection.constantPressureSystem} />
+              <DetailCell label="Water Treatment"        value={waterTreatmentLabel(inspection.waterTreatment)} />
+              <DetailCell label="Wire Type"              value={wireTypeLabel(inspection.wireType)} />
+            </View>
+          </View>
+
+          {/* Cycle Time */}
+          <View wrap={false} style={s.section}>
+            <SectionTitle>Cycle Test</SectionTitle>
+            <View style={s.grid2}>
+              <DetailCell label="Sec to High Reading"   value={inspection.secondsToHighReading != null ? `${inspection.secondsToHighReading} s` : null} />
+              <DetailCell label="Sec to Low Reading"    value={inspection.secondsToLowReading != null ? `${inspection.secondsToLowReading} s` : null} />
+              <DetailCell label="Cycle Time (computed)" value={inspection.cycleTime != null ? `${inspection.cycleTime} s` : null} />
+            </View>
+          </View>
+        </View>
+
+        <Footer />
+      </Page>
+
+      {/* ══════════════════════════════════════════════════════════
+          PAGE 3 — Well Yield + Notes + Photos + Disclaimer
           ══════════════════════════════════════════════════════ */}
       <Page size="LETTER" style={s.page}>
         <View style={s.miniHeader}>
@@ -459,51 +486,49 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
             </View>
           )}
 
-          {/* Notes & Findings */}
-          {hasNotes && (
-            <View style={s.section}>
-              <SectionTitle>Findings & Recommendations</SectionTitle>
-              {inspection.memberFacingSummary && (
-                <View wrap={false} style={s.noteBox}>
-                  <Text style={s.noteLabel}>Member Summary</Text>
-                  <Text style={s.noteText}>{inspection.memberFacingSummary}</Text>
-                </View>
-              )}
-              {inspection.requiredRepairs && (
-                <View wrap={false} style={s.alertBox}>
-                  <Text style={s.alertLabel}>Required Repairs</Text>
-                  <Text style={s.alertText}>{inspection.requiredRepairs}</Text>
-                </View>
-              )}
-              {inspection.recommendedRepairs && (
-                <View wrap={false} style={s.noteBox}>
-                  <Text style={s.noteLabel}>Recommended Repairs / Updates</Text>
-                  <Text style={s.noteText}>{inspection.recommendedRepairs}</Text>
-                </View>
-              )}
-              {inspection.inspectorNotes && (
-                <View wrap={false} style={s.noteBox}>
-                  <Text style={s.noteLabel}>Inspector Notes</Text>
-                  <Text style={s.noteText}>{inspection.inspectorNotes}</Text>
-                </View>
-              )}
-            </View>
-          )}
+          {/* Notes & Findings — always shown */}
+          <View style={s.section}>
+            <SectionTitle>Findings & Recommendations</SectionTitle>
+            <NoteBox label="Member-Facing Summary"       value={inspection.memberFacingSummary} />
+            <NoteBox label="Required Repairs"            value={inspection.requiredRepairs} alert={!!inspection.requiredRepairs} />
+            <NoteBox label="Recommended Repairs / Updates" value={inspection.recommendedRepairs} />
+            <NoteBox label="Inspector Notes"             value={inspection.inspectorNotes} />
+            <NoteBox label="Internal Reviewer Notes"     value={inspection.internalReviewerNotes} />
+          </View>
 
-          {/* Photos */}
-          {otherPhotos.length > 0 && (
+          {/* Eligibility */}
+          {inspection.membershipTier && (
             <View wrap={false} style={s.section}>
-              <SectionTitle>Inspection Photos</SectionTitle>
-              <View style={s.photoGrid}>
-                {otherPhotos.slice(0, 6).map((photo: InspectionPhoto) => (
-                  <View key={photo.id} style={s.photoItem}>
-                    <Image src={photo.url} style={s.photoImg} />
-                    <Text style={s.photoCaption}>{photo.label?.replace(/_/g, " ") ?? "Photo"}</Text>
-                  </View>
-                ))}
+              <SectionTitle>Eligibility</SectionTitle>
+              <View style={s.grid2}>
+                <DetailCell label="Membership Tier"       value={tierLabel} />
+                <DetailCell label="Eligible for Superior" value={inspection.eligibleForSuperior} />
+                <DetailCell label="Calc Version"          value={`v${inspection.wellCalculationVersion}`} />
               </View>
             </View>
           )}
+
+          {/* Photos — all 7 slots always shown */}
+          <View style={s.section}>
+            <SectionTitle>Inspection Photos</SectionTitle>
+            <View style={s.photoGrid}>
+              {PHOTO_LABELS.map(({ key, label }) => {
+                const photo = inspection.photos.find((p) => p.label === key);
+                return (
+                  <View key={key} style={s.photoItem}>
+                    {photo ? (
+                      <Image src={photo.url} style={s.photoImg} />
+                    ) : (
+                      <View style={s.photoPlaceholder}>
+                        <Text style={{ fontSize: 7, color: C.muted, textAlign: "center" }}>No photo</Text>
+                      </View>
+                    )}
+                    <Text style={s.photoCaption}>{label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
 
           {/* Disclaimer */}
           <View wrap={false} style={s.disclaimer}>
@@ -521,11 +546,7 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
           </View>
         </View>
 
-        <View style={s.footer} fixed>
-          <Text style={s.footerText}>Welgard Well Warranty Operations · {inspection.reportId ?? "Draft"}</Text>
-          <Text style={s.footerText}>Confidential — For authorized use only</Text>
-          <Text style={s.footerText} render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
-        </View>
+        <Footer />
       </Page>
     </Document>
   );

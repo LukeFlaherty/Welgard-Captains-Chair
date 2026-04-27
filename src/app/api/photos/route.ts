@@ -3,6 +3,7 @@ import { put, del } from "@vercel/blob";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const ctx: Record<string, unknown> = {};

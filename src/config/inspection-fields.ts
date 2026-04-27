@@ -162,9 +162,12 @@ export const FINAL_STATUS_OPTIONS: SelectOption[] = [
 // ─── Photos ───────────────────────────────────────────────────────────────────
 
 export const PHOTO_LABELS: { key: string; label: string }[] = [
-  { key: "property_front",  label: "Property Front Photo" },
-  { key: "well_head",       label: "Well Head Photo" },
-  { key: "pressure_system", label: "Pressure System Photo" },
+  { key: "property_front",  label: "Front of House" },
+  { key: "well_head",       label: "Well Head" },
+  { key: "pressure_tank",   label: "Pressure Tank" },
+  { key: "amp_reading",     label: "Amp Reading" },
+  { key: "pressure_gage",   label: "Pressure Gage" },
+  { key: "water_treatment", label: "Water Treatment" },
   { key: "additional",      label: "Additional Photo" },
 ];
 
