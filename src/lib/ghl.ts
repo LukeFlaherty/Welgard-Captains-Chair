@@ -92,7 +92,7 @@ export async function searchContactByEmail(email: string): Promise<GhlContact | 
   const locationId = process.env.GHL_LOCATION_ID;
   if (!locationId) throw new Error("GHL_LOCATION_ID is not configured");
 
-  const url = `${GHL_BASE}/contacts/search?q=${encodeURIComponent(email)}&locationId=${locationId}`;
+  const url = `${GHL_BASE}/contacts/?locationId=${locationId}&query=${encodeURIComponent(email)}&limit=5`;
   const res = await fetch(url, { headers: ghlHeaders(), cache: "no-store" });
 
   if (!res.ok) {
