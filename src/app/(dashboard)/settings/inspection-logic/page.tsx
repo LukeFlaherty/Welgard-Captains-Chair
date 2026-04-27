@@ -24,13 +24,14 @@ function AttentionBadge() {
   );
 }
 
-function TierBadge({ tier }: { tier: "premium" | "superior" | "standard" }) {
+function TierBadge({ tier }: { tier: "premium" | "superior" | "standard" | "ineligible" }) {
   const styles = {
-    premium: "bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100",
-    superior: "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100",
-    standard: "bg-red-100 text-red-800 border-red-200 hover:bg-red-100",
+    premium:    "bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100",
+    superior:   "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100",
+    standard:   "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100",
+    ineligible: "bg-red-100 text-red-800 border-red-200 hover:bg-red-100",
   };
-  const labels = { premium: "Premium", superior: "Superior", standard: "Standard" };
+  const labels = { premium: "Premium", superior: "Superior", standard: "Standard", ineligible: "Ineligible" };
   return (
     <Badge className={cn("text-xs font-semibold", styles[tier])}>
       {labels[tier]}
@@ -115,9 +116,9 @@ export default function InspectionLogicPage() {
       <div className="flex flex-col gap-3">
         <SectionHeader
           label="Membership Tiers"
-          description="Every completed inspection produces one of three outcomes based on the criteria below."
+          description="Every completed inspection produces one of four outcomes based on the criteria below."
         />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Card className="border-emerald-200 bg-emerald-50/40">
             <CardHeader className="pb-2 pt-4 px-4">
               <div className="flex items-center gap-2">
@@ -146,16 +147,30 @@ export default function InspectionLogicPage() {
             </CardContent>
           </Card>
 
+          <Card className="border-blue-200 bg-blue-50/40">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <div className="flex items-center gap-2">
+                <Info className="w-4 h-4 text-blue-600" />
+                <CardTitle className="text-sm text-blue-800">Standard</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <p className="text-xs text-blue-700">
+                External items need attention but all major items pass. Does not qualify for Superior or Premium. Addressing flagged items may open eligibility.
+              </p>
+            </CardContent>
+          </Card>
+
           <Card className="border-red-200 bg-red-50/40">
             <CardHeader className="pb-2 pt-4 px-4">
               <div className="flex items-center gap-2">
                 <XCircle className="w-4 h-4 text-red-600" />
-                <CardTitle className="text-sm text-red-800">Standard</CardTitle>
+                <CardTitle className="text-sm text-red-800">Ineligible</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <p className="text-xs text-red-700">
-                One or more major items need attention. Required items must be addressed before Superior or Premium coverage can be offered.
+                One or more <strong>major</strong> items fail (Amperage, Tank, Control Box, Pressure Switch, or Cycle Time), or the member&apos;s state is not eligible for WelGard programs. Coverage cannot be offered.
               </p>
             </CardContent>
           </Card>
@@ -340,7 +355,7 @@ export default function InspectionLogicPage() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground pl-2">
-                If any major item needs attention, the well goes to Standard — not Superior.
+                If any major item needs attention, the well is Ineligible — not Superior or Standard.
               </p>
             </div>
 
@@ -561,7 +576,7 @@ export default function InspectionLogicPage() {
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm flex items-center gap-2">
                 <XCircle className="w-4 h-4 text-red-500" />
-                Major Items (any fail → Standard)
+                Major Items (any fail → Ineligible)
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">

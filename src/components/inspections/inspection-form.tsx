@@ -129,7 +129,7 @@ const schema = z.object({
   recommendedRepairs:    z.string().optional().default(""),
   memberFacingSummary:   z.string().optional().default(""),
   activity:              z.string().optional().default(""),
-  finalStatus:           z.enum(["green", "yellow", "red", ""]).optional().default(""),
+  finalStatus:           z.enum(["green", "yellow", "red", "ineligible", ""]).optional().default(""),
   overrideReason:        z.string().optional().default(""),
   ghlContactId:          z.string().optional().default(""),
   ghlOpportunityId:      z.string().optional().default(""),
@@ -1158,10 +1158,17 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                           ? "bg-green-100 text-green-700 border-green-300"
                           : calc.membershipTier === "superior"
                           ? "bg-yellow-100 text-yellow-700 border-yellow-300"
-                          : "bg-red-100 text-red-700 border-red-300"
+                          : calc.membershipTier === "ineligible"
+                          ? "bg-red-100 text-red-700 border-red-300"
+                          : "bg-blue-100 text-blue-700 border-blue-300"
                       }
                     >
-                      {STATUS_LABELS[calc.membershipTier === "premium" ? "green" : calc.membershipTier === "superior" ? "yellow" : "red"]} Tier
+                      {STATUS_LABELS[
+                        calc.membershipTier === "premium" ? "green"
+                        : calc.membershipTier === "superior" ? "yellow"
+                        : calc.membershipTier === "ineligible" ? "ineligible"
+                        : "red"
+                      ]} Tier
                     </Badge>
                   )}
                 </div>
@@ -1229,7 +1236,7 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                 <Field label="Final Approval Override">
                   <Select
                     value={watched.finalStatus ?? ""}
-                    onValueChange={(v) => setValue("finalStatus", (v ?? "") as "green" | "yellow" | "red" | "")}
+                    onValueChange={(v) => setValue("finalStatus", (v ?? "") as "green" | "yellow" | "red" | "ineligible" | "")}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Use system-computed (recommended)" />

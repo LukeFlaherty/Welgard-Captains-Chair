@@ -74,12 +74,13 @@ export default async function InspectionsPage() {
 
       {/* Summary stats */}
       {inspections.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: "Total", value: inspections.length, color: "text-foreground" },
-            { label: "Approved", value: counts.green ?? 0, color: "text-green-600" },
-            { label: "Conditional", value: counts.yellow ?? 0, color: "text-yellow-600" },
-            { label: "Not Approved", value: counts.red ?? 0, color: "text-red-600" },
+            { label: "Total",       value: inspections.length,                     color: "text-foreground" },
+            { label: "Premium",     value: counts.green ?? 0,                      color: "text-green-600" },
+            { label: "Superior",    value: counts.yellow ?? 0,                     color: "text-yellow-600" },
+            { label: "Standard",    value: counts.red ?? 0,                        color: "text-blue-600" },
+            { label: "Ineligible",  value: counts.ineligible ?? 0,                 color: "text-red-600" },
           ].map((stat) => (
             <div
               key={stat.label}

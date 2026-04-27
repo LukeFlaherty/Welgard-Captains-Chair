@@ -1,6 +1,6 @@
 import type { Inspection, InspectionPhoto, Inspector, Member, Vendor, YieldTest } from "@/generated/prisma";
 
-export type InspectionStatus = "green" | "yellow" | "red";
+export type InspectionStatus = "green" | "yellow" | "red" | "ineligible";
 export type GhlSyncStatus = "pending" | "synced" | "error";
 
 export type InspectionWithRelations = Inspection & {

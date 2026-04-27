@@ -30,7 +30,7 @@ export type InspectionCalcInput = {
 
 export type CategoryStatus = "pass" | "needs_attention" | null; // null = indeterminate (missing data)
 
-export type MembershipTier = "premium" | "superior" | "standard";
+export type MembershipTier = "premium" | "superior" | "standard" | "ineligible";
 
 export type CalcResult = {
   cycleTime: number | null;
@@ -44,7 +44,7 @@ export type CalcResult = {
   wellYieldStatus: CategoryStatus;
   eligibleForSuperior: boolean | null;
   membershipTier: MembershipTier | null;
-  systemStatus: "green" | "yellow" | "red";
+  systemStatus: "green" | "yellow" | "red" | "ineligible";
   statusRationale: string[];
 };
 
@@ -334,30 +334,40 @@ export function calculateInspection(input: InspectionCalcInput): CalcResult {
     cycleTimeStatus !== null &&
     wellYieldStatus !== null;
 
+  // Ineligible when major items fail or state disqualifies from all programs
+  const stateUpperForTier = input.state?.toUpperCase().trim() ?? "";
+  const stateIneligible = !!input.state && SUPERIOR_INELIGIBLE_STATES.includes(stateUpperForTier);
+  // Internal equipment and cycle time are the "major" items — failure = ineligible
+  const majorItemsFail =
+    internalEquipmentStatus === "needs_attention" ||
+    cycleTimeStatus === "needs_attention";
+
   if (allDetermined) {
-    const stateUpper = input.state?.toUpperCase().trim() ?? "";
-    const stateEligible = !SUPERIOR_INELIGIBLE_STATES.includes(stateUpper);
     const allPass =
       externalEquipmentStatus === "pass" &&
       internalEquipmentStatus === "pass" &&
       cycleTimeStatus === "pass" &&
       wellYieldStatus === "pass";
 
-    if (allPass && stateEligible) {
+    if (allPass && !stateIneligible) {
       membershipTier = "premium";
     } else if (eligibleForSuperior === true) {
       membershipTier = "superior";
+    } else if (stateIneligible || majorItemsFail) {
+      membershipTier = "ineligible";
     } else {
       membershipTier = "standard";
     }
   }
 
-  // System status color (auto-computed)
-  const systemStatus: "green" | "yellow" | "red" =
+  // System status (auto-computed): "red" = Standard (DB-compatible), "ineligible" = new Ineligible
+  const systemStatus: "green" | "yellow" | "red" | "ineligible" =
     membershipTier === "premium"
       ? "green"
       : membershipTier === "superior"
       ? "yellow"
+      : membershipTier === "ineligible"
+      ? "ineligible"
       : membershipTier === "standard"
       ? "red"
       : "green"; // default when indeterminate
@@ -378,6 +388,8 @@ export function calculateInspection(input: InspectionCalcInput): CalcResult {
     if (wellCalculationVersion >= 2 && avgMinutesToReach350 === null && wellYieldGpm != null)
       statusRationale.push("No yield test reached 350 gallons.");
   }
+  if (stateIneligible && allDetermined)
+    statusRationale.push(`Member's state (${input.state}) is not eligible for WelGard Premium or Superior coverage.`);
   if (membershipTier === null)
     statusRationale.push("Inspection incomplete — one or more required fields are missing.");
 

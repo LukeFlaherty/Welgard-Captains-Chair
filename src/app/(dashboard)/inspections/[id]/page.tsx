@@ -146,9 +146,10 @@ export default async function InspectionViewPage({
       {/* Status hero */}
       <Card className={cn(
         "border-2",
-        inspection.finalStatus === "green" && "border-green-300 bg-green-50 dark:bg-green-900/10",
-        inspection.finalStatus === "yellow" && "border-yellow-300 bg-yellow-50 dark:bg-yellow-900/10",
-        inspection.finalStatus === "red" && "border-red-300 bg-red-50 dark:bg-red-900/10"
+        inspection.finalStatus === "green"      && "border-green-300 bg-green-50 dark:bg-green-900/10",
+        inspection.finalStatus === "yellow"     && "border-yellow-300 bg-yellow-50 dark:bg-yellow-900/10",
+        inspection.finalStatus === "red"        && "border-blue-300 bg-blue-50 dark:bg-blue-900/10",
+        inspection.finalStatus === "ineligible" && "border-red-300 bg-red-50 dark:bg-red-900/10"
       )}>
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row sm:items-start gap-4">

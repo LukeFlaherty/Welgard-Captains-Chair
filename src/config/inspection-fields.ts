@@ -154,9 +154,10 @@ export const ACTIVITY_OPTIONS: SelectOption[] = [
 ];
 
 export const FINAL_STATUS_OPTIONS: SelectOption[] = [
-  { value: "green",  label: "Green — Approved" },
-  { value: "yellow", label: "Yellow — Conditional" },
-  { value: "red",    label: "Red — Not Approved" },
+  { value: "green",      label: "Premium (Approved)" },
+  { value: "yellow",     label: "Superior (Conditional)" },
+  { value: "red",        label: "Standard" },
+  { value: "ineligible", label: "Ineligible" },
 ];
 
 // ─── Photos ───────────────────────────────────────────────────────────────────

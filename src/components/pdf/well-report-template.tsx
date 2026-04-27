@@ -33,6 +33,11 @@ const C = {
   amber: "#b45309",
   amberBg: "#fffbeb",
   amberBorder: "#fde68a",
+  // "red" DB value = Standard → rendered blue in UI and PDF
+  blue: "#1e40af",
+  blueBg: "#eff6ff",
+  blueBorder: "#bfdbfe",
+  // "ineligible" DB value = Ineligible → rendered red
   red: "#dc2626",
   redBg: "#fef2f2",
   redBorder: "#fecaca",
@@ -44,9 +49,9 @@ const C = {
   textLight: "#374151",
 };
 
-const STATUS_COLOR: Record<string, string> = { green: C.green, yellow: C.yellow, red: C.red };
-const STATUS_BG: Record<string, string> = { green: C.greenBg, yellow: C.yellowBg, red: C.redBg };
-const STATUS_BORDER: Record<string, string> = { green: C.greenBorder, yellow: C.yellowBorder, red: C.redBorder };
+const STATUS_COLOR: Record<string, string> = { green: C.green, yellow: C.yellow, red: C.blue, ineligible: C.red };
+const STATUS_BG: Record<string, string> = { green: C.greenBg, yellow: C.yellowBg, red: C.blueBg, ineligible: C.redBg };
+const STATUS_BORDER: Record<string, string> = { green: C.greenBorder, yellow: C.yellowBorder, red: C.blueBorder, ineligible: C.redBorder };
 const CAT_COLOR: Record<string, string> = { pass: C.green, needs_attention: C.amber };
 const CAT_BG: Record<string, string> = { pass: C.greenBg, needs_attention: C.amberBg };
 
@@ -302,7 +307,7 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
           <View wrap={false} style={[s.statusBanner, { backgroundColor: statusBg, borderWidth: 1.5, borderColor: statusBorder }]}>
             <View style={[s.statusCircle, { backgroundColor: statusColor }]}>
               <Text style={[s.statusCircleText, { color: C.white }]}>
-                {status === "green" ? "✓" : status === "yellow" ? "!" : "✗"}
+                {status === "green" ? "✓" : status === "yellow" ? "!" : status === "ineligible" ? "✗" : "–"}
               </Text>
             </View>
             <View style={s.statusRight}>

@@ -12,13 +12,18 @@ const statusStyles: Record<string, string> = {
     "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700",
   yellow:
     "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700",
-  red: "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
+  // "red" in DB = Standard tier — displayed in blue
+  red:
+    "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700",
+  ineligible:
+    "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700",
 };
 
 const dotStyles: Record<string, string> = {
-  green: "bg-green-500",
-  yellow: "bg-yellow-500",
-  red: "bg-red-500",
+  green:      "bg-green-500",
+  yellow:     "bg-yellow-500",
+  red:        "bg-blue-500",
+  ineligible: "bg-red-500",
 };
 
 const sizeStyles = {
