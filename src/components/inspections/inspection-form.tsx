@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -319,11 +320,27 @@ function SectionHeader({
 
 // ─── Computed value chip ──────────────────────────────────────────────────────
 
-function ComputedValue({ label, value, unit }: { label: string; value: string | number | null | undefined; unit?: string }) {
+function ComputedValue({
+  label, value, unit, pass, warn,
+}: {
+  label: string;
+  value: string | number | null | undefined;
+  unit?: string;
+  pass?: boolean;
+  warn?: boolean;
+}) {
   return (
-    <div className="flex flex-col gap-0.5 p-3 rounded-lg bg-muted/50 border">
+    <div className={cn(
+      "flex flex-col gap-0.5 p-3 rounded-lg border",
+      warn ? "bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800"
+           : pass ? "bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-800"
+           : "bg-muted/50"
+    )}>
       <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">{label}</span>
-      <span className="text-lg font-semibold">
+      <span className={cn(
+        "text-lg font-semibold",
+        warn ? "text-amber-700 dark:text-amber-400" : pass ? "text-green-700 dark:text-green-400" : ""
+      )}>
         {value != null ? (
           <>
             {typeof value === "number" ? value.toFixed(value % 1 === 0 ? 0 : 2) : value}
@@ -397,30 +414,35 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
   const { register, handleSubmit, watch, setValue, formState: { errors } } = form;
   const watched = watch();
 
-  // Live calculations from current form values
+  // Live calculations from current form values.
+  // toNum guards against RHF returning raw HTML string values from number inputs,
+  // which would turn "180" + "120" into "180120" instead of 300.
   const calc = useMemo(() => {
+    const toNum = (v: unknown): number | null =>
+      v != null && v !== "" && !Number.isNaN(Number(v)) ? Number(v) : null;
+
     return calculateInspection({
       wellType:              watched.wellType || null,
-      wellDepthFt:           watched.wellDepthFt ?? null,
+      wellDepthFt:           toNum(watched.wellDepthFt),
       wellDepthUnknown:      watched.wellDepthUnknown ?? false,
       wellObstructions:      watched.wellObstructions || null,
       wellCap:               watched.wellCap || null,
-      casingHeightInches:    watched.casingHeightInches ?? null,
-      amperageReading:       watched.amperageReading ?? null,
+      casingHeightInches:    toNum(watched.casingHeightInches),
+      amperageReading:       toNum(watched.amperageReading),
       tankCondition:         watched.tankCondition || null,
       controlBoxCondition:   watched.controlBoxCondition || null,
       pressureSwitch:        watched.pressureSwitch || null,
       pressureGauge:         watched.pressureGauge || null,
       constantPressureSystem: watched.constantPressureSystem ?? false,
-      secondsToHighReading:  watched.secondsToHighReading ?? null,
-      secondsToLowReading:   watched.secondsToLowReading ?? null,
+      secondsToHighReading:  toNum(watched.secondsToHighReading),
+      secondsToLowReading:   toNum(watched.secondsToLowReading),
       wellCalculationVersion: watched.wellCalculationVersion ?? 2,
       state:                 watched.state || null,
       yieldTests: (watched.yieldTests ?? []).map((t) => ({
         testNumber:          t.testNumber,
         startTime:           t.startTime || null,
-        totalGallons:        t.totalGallons ?? null,
-        secondsToFillBucket: t.secondsToFillBucket ?? null,
+        totalGallons:        toNum(t.totalGallons),
+        secondsToFillBucket: toNum(t.secondsToFillBucket),
       })),
     });
   }, [
@@ -997,20 +1019,67 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
 
               <Separator />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <ComputedValue
-                  label="Cycle Time"
-                  value={calc.cycleTime}
-                  unit="seconds"
-                />
-                <div className="flex flex-col gap-0.5 p-3 rounded-lg bg-muted/50 border">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Status</span>
-                  <div className="mt-1">
-                    <CategoryBadge status={calc.cycleTimeStatus} />
+              {/* Live formula: High + Low = Cycle Time */}
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* High reading pill */}
+                  <div className="flex flex-col items-center gap-0.5 px-4 py-2.5 rounded-lg bg-muted/60 border min-w-[88px]">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">High</span>
+                    <span className="text-xl font-bold tabular-nums leading-none mt-0.5">
+                      {watched.secondsToHighReading != null
+                        ? watched.secondsToHighReading
+                        : <span className="text-muted-foreground text-sm font-normal">—</span>}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-0.5">sec</span>
                   </div>
-                  {watched.constantPressureSystem && (
-                    <p className="text-xs text-muted-foreground mt-1">Overridden — Constant Pressure System</p>
-                  )}
+
+                  <span className="text-2xl font-light text-muted-foreground select-none">+</span>
+
+                  {/* Low reading pill */}
+                  <div className="flex flex-col items-center gap-0.5 px-4 py-2.5 rounded-lg bg-muted/60 border min-w-[88px]">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Low</span>
+                    <span className="text-xl font-bold tabular-nums leading-none mt-0.5">
+                      {watched.secondsToLowReading != null
+                        ? watched.secondsToLowReading
+                        : <span className="text-muted-foreground text-sm font-normal">—</span>}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-0.5">sec</span>
+                  </div>
+
+                  <span className="text-2xl font-light text-muted-foreground select-none">=</span>
+
+                  {/* Cycle Time result pill — color coded */}
+                  <div className={cn(
+                    "flex flex-col items-center gap-0.5 px-4 py-2.5 rounded-lg border min-w-[100px]",
+                    calc.cycleTime == null
+                      ? "bg-muted/60"
+                      : calc.cycleTimeStatus === "pass"
+                      ? "bg-green-50 border-green-200 dark:bg-green-900/15 dark:border-green-800"
+                      : "bg-amber-50 border-amber-200 dark:bg-amber-900/15 dark:border-amber-800"
+                  )}>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Cycle Time</span>
+                    <span className={cn(
+                      "text-xl font-bold tabular-nums leading-none mt-0.5",
+                      calc.cycleTimeStatus === "pass" ? "text-green-700 dark:text-green-400"
+                        : calc.cycleTimeStatus === "needs_attention" ? "text-amber-700 dark:text-amber-400"
+                        : ""
+                    )}>
+                      {calc.cycleTime != null
+                        ? calc.cycleTime
+                        : <span className="text-muted-foreground text-sm font-normal">—</span>}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground mt-0.5">sec</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-xs text-muted-foreground">
+                    Valid range: <span className="font-semibold text-foreground">30 – 420 seconds.</span>
+                    {watched.constantPressureSystem && (
+                      <span className="italic ml-1">Overridden — Constant Pressure System active.</span>
+                    )}
+                  </p>
+                  <CategoryBadge status={calc.cycleTimeStatus} />
                 </div>
               </div>
             </CardContent>
@@ -1043,10 +1112,32 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Computed Results</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <ComputedValue label="Well Yield" value={calc.wellYieldGpm} unit="gpm" />
-                  <ComputedValue label="Total Gallons" value={calc.totalGallons} unit="gal" />
-                  <ComputedValue label="Avg Min to 350 Gal" value={calc.avgMinutesToReach350 != null ? parseFloat(calc.avgMinutesToReach350.toFixed(1)) : null} unit="min" />
-                  <ComputedValue label="Gallons Per Day" value={calc.gallonsPerDay} unit="gal/day" />
+                  <ComputedValue
+                    label="Well Yield"
+                    value={calc.wellYieldGpm}
+                    unit="gpm"
+                    pass={calc.wellYieldGpm != null && calc.wellYieldGpm >= 1.0}
+                    warn={calc.wellYieldGpm != null && calc.wellYieldGpm < 1.0}
+                  />
+                  <ComputedValue
+                    label="Total Gallons"
+                    value={calc.totalGallons}
+                    unit="gal"
+                    pass={calc.totalGallons != null && calc.totalGallons >= 350}
+                    warn={calc.totalGallons != null && calc.totalGallons < 350}
+                  />
+                  <ComputedValue
+                    label="Avg Min to 350 Gal"
+                    value={calc.avgMinutesToReach350 != null ? parseFloat(calc.avgMinutesToReach350.toFixed(1)) : null}
+                    unit="min"
+                    pass={calc.avgMinutesToReach350 != null && calc.avgMinutesToReach350 <= 120}
+                    warn={calc.avgMinutesToReach350 != null && calc.avgMinutesToReach350 > 120}
+                  />
+                  <ComputedValue
+                    label="Gallons Per Day"
+                    value={calc.gallonsPerDay}
+                    unit="gal/day"
+                  />
                 </div>
               </div>
 

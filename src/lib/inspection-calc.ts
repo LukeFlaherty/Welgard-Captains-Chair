@@ -81,8 +81,10 @@ function parseTimeMinutes(time: string): number {
 // ─── Yield calculation helpers ────────────────────────────────────────────────
 
 function sortedValidTests(tests: YieldTestInput[]): YieldTestInput[] {
+  // secondsToFillBucket is NOT required here — it is only needed by calcAvgMinutesToReach350,
+  // which checks it explicitly. The interval yield calculation only needs startTime + totalGallons.
   return [...tests]
-    .filter((t) => t.startTime && t.totalGallons != null && t.secondsToFillBucket != null)
+    .filter((t) => t.startTime && t.totalGallons != null)
     .sort((a, b) => a.testNumber - b.testNumber);
 }
 
