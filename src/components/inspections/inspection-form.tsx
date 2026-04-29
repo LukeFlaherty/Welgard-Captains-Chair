@@ -485,6 +485,15 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
 
   // Submit
   async function onSubmit(values: FormValues, isDraft: boolean) {
+    // CPS photo is mandatory on non-draft saves
+    if (!isDraft && values.constantPressureSystem) {
+      const hasCpsPhoto = uploadedPhotos.some((p) => p.label === "control_box_cps");
+      if (!hasCpsPhoto) {
+        toast.error("A Control Box / CPS photo is required when Constant Pressure System is checked. Please upload it in the Photos tab.");
+        setSubmitting(false);
+        return;
+      }
+    }
     setSubmitting(true);
     const payload: InspectionFormValues = {
       ...values,
@@ -1188,11 +1197,18 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
               <CardDescription>Upload photos included in the PDF report. Saved immediately on upload.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-6">
-              {PHOTO_LABELS.map(({ key: label, label: display }) => {
+              {PHOTO_LABELS.map(({ key: label, label: display, hint }) => {
                 const existing = uploadedPhotos.find((p) => p.label === label);
+                const isCpsRequired = label === "control_box_cps" && watched.constantPressureSystem && !existing;
                 return (
                   <div key={label} className="flex flex-col gap-2">
-                    <Label className="text-sm font-medium">{display}</Label>
+                    <div className="flex items-center gap-2">
+                      <Label className={cn("text-sm font-medium", isCpsRequired && "text-orange-700")}>
+                        {display}
+                        {isCpsRequired && <span className="ml-1 text-orange-600">*</span>}
+                      </Label>
+                    </div>
+                    {hint && <p className="text-xs text-muted-foreground -mt-1">{hint}</p>}
                     {existing ? (
                       <div className="relative w-48 h-32 rounded-lg overflow-hidden border">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1211,13 +1227,18 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                         </button>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center w-48 h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                      <label className={cn(
+                        "flex flex-col items-center justify-center w-48 h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
+                        isCpsRequired && "border-orange-400 bg-orange-50 hover:bg-orange-100"
+                      )}>
                         {uploadingPhoto ? (
                           <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
                         ) : (
                           <>
-                            <UploadCloud className="w-6 h-6 text-muted-foreground mb-1" />
-                            <span className="text-xs text-muted-foreground">Click to upload</span>
+                            <UploadCloud className={cn("w-6 h-6 mb-1", isCpsRequired ? "text-orange-500" : "text-muted-foreground")} />
+                            <span className={cn("text-xs", isCpsRequired ? "text-orange-600 font-medium" : "text-muted-foreground")}>
+                              {isCpsRequired ? "Required — click to upload" : "Click to upload"}
+                            </span>
                           </>
                         )}
                         <input type="file" accept="image/*" className="sr-only" disabled={uploadingPhoto} onChange={(e) => handlePhotoUpload(e, label)} />

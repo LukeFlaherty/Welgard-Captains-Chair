@@ -4,7 +4,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import {
   ArrowLeft, Pencil, CalendarDays, User, MapPin, Zap,
-  Droplets, Timer, Gauge, ShieldCheck,
+  Droplets, Timer, Gauge, ShieldCheck, TrendingUp,
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,6 +108,12 @@ export default async function InspectionViewPage({
   const isOverridden = inspection.finalStatus !== inspection.systemStatus;
   const tierLabel = inspection.membershipTier ? TIER_LABELS[inspection.membershipTier] : null;
 
+  const UPCHARGE_LABELS: Record<string, string> = {
+    cps:        "Constant Pressure System",
+    deep_well:  "Deep Well (>500 ft)",
+    large_tank: "Large Tank (>60 gal)",
+  };
+
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-8 max-w-5xl mx-auto w-full">
       {/* Page header */}
@@ -171,6 +177,19 @@ export default async function InspectionViewPage({
                   <Badge variant="outline" className="text-xs">Manually Overridden</Badge>
                 )}
               </div>
+              {inspection.upcharges.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {inspection.upcharges.map((flag: string) => (
+                    <span
+                      key={flag}
+                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border bg-orange-50 text-orange-700 border-orange-300 font-medium"
+                    >
+                      <TrendingUp className="w-3 h-3" />
+                      {UPCHARGE_LABELS[flag] ?? flag} — Upcharge
+                    </span>
+                  ))}
+                </div>
+              )}
               <p className="text-sm text-muted-foreground max-w-xl">
                 {STATUS_DESCRIPTIONS[inspection.finalStatus]}
               </p>

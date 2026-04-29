@@ -202,6 +202,7 @@ model Inspection {
   finalStatus     String   @default("green")  // may be manually overridden
   overrideReason  String?
   statusRationale String[]
+  upcharges       String[]  // cps | deep_well | large_tank
 
   // GHL integration
   ghlContactId     String?

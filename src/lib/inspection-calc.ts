@@ -17,6 +17,7 @@ export type InspectionCalcInput = {
   casingHeightInches?: number | null;
   amperageReading?: number | null;
   tankCondition?: string | null;
+  tankSizeGal?: number | null;
   controlBoxCondition?: string | null;
   pressureSwitch?: string | null;
   pressureGauge?: string | null;
@@ -32,6 +33,8 @@ export type CategoryStatus = "pass" | "needs_attention" | null; // null = indete
 
 export type MembershipTier = "premium" | "superior" | "standard" | "ineligible";
 
+export type UpchargeFlag = "cps" | "deep_well" | "large_tank";
+
 export type CalcResult = {
   cycleTime: number | null;
   wellYieldGpm: number | null;
@@ -46,6 +49,7 @@ export type CalcResult = {
   membershipTier: MembershipTier | null;
   systemStatus: "green" | "yellow" | "red" | "ineligible";
   statusRationale: string[];
+  upcharges: UpchargeFlag[];
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -374,6 +378,12 @@ export function calculateInspection(input: InspectionCalcInput): CalcResult {
       ? "red"
       : "green"; // default when indeterminate
 
+  // Upcharge flags — independent of tier, purely additive pricing signals
+  const upcharges: UpchargeFlag[] = [];
+  if (input.constantPressureSystem) upcharges.push("cps");
+  if (!input.wellDepthUnknown && input.wellDepthFt != null && input.wellDepthFt > 500) upcharges.push("deep_well");
+  if (input.tankSizeGal != null && input.tankSizeGal > 60) upcharges.push("large_tank");
+
   // Build rationale
   const statusRationale: string[] = [];
   if (externalEquipmentStatus === "needs_attention") statusRationale.push("External Equipment needs attention.");
@@ -409,5 +419,6 @@ export function calculateInspection(input: InspectionCalcInput): CalcResult {
     membershipTier,
     systemStatus,
     statusRationale,
+    upcharges,
   };
 }

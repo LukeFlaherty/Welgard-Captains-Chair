@@ -162,14 +162,16 @@ export const FINAL_STATUS_OPTIONS: SelectOption[] = [
 
 // ─── Photos ───────────────────────────────────────────────────────────────────
 
-export const PHOTO_LABELS: { key: string; label: string }[] = [
-  { key: "property_front",  label: "Front of House" },
-  { key: "well_head",       label: "Well Head" },
-  { key: "pressure_tank",   label: "Pressure Tank" },
-  { key: "amp_reading",     label: "Amp Reading" },
-  { key: "pressure_gage",   label: "Pressure Gage" },
-  { key: "water_treatment", label: "Water Treatment" },
-  { key: "additional",      label: "Additional Photo" },
+export const PHOTO_LABELS: { key: string; label: string; hint?: string }[] = [
+  { key: "property_front",   label: "Front of House" },
+  { key: "well_head",        label: "Well Head" },
+  { key: "well_permit",      label: "Well Permit",        hint: "Photo of permit tag or documentation — used to verify well depth" },
+  { key: "pressure_tank",    label: "Pressure Tank" },
+  { key: "control_box_cps",  label: "Control Box / CPS",  hint: "Required when Constant Pressure System is present" },
+  { key: "amp_reading",      label: "Amp Reading" },
+  { key: "pressure_gage",    label: "Pressure Gage" },
+  { key: "water_treatment",  label: "Water Treatment" },
+  { key: "additional",       label: "Additional Photo" },
 ];
 
 // ─── Human-readable label helpers ────────────────────────────────────────────

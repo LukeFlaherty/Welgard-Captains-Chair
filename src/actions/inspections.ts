@@ -28,6 +28,7 @@ function toCalcInput(values: InspectionFormValues) {
     casingHeightInches:      values.casingHeightInches,
     amperageReading:         values.amperageReading,
     tankCondition:           values.tankCondition || null,
+    tankSizeGal:             values.tankSizeGal,
     controlBoxCondition:     values.controlBoxCondition || null,
     pressureSwitch:          values.pressureSwitch || null,
     pressureGauge:           values.pressureGauge || null,
@@ -123,6 +124,7 @@ function buildInspectionData(values: InspectionFormValues) {
         ? values.overrideReason || null
         : null,
     statusRationale: calc.statusRationale,
+    upcharges:       calc.upcharges,
     inspectorNotes:        values.inspectorNotes || null,
     internalReviewerNotes: values.internalReviewerNotes || null,
     requiredRepairs:       values.requiredRepairs || null,
@@ -388,10 +390,9 @@ export async function listInspections(opts: {
   return { data, total, statusCounts };
 }
 
-// Fields considered critical — null values here get flagged for manual entry.
-// Extend this list as new data quality rules are identified.
+// Simple null-field checks — extend as new data quality rules are identified.
 const DATA_QUALITY_CHECKS: Array<{ field: string; label: string; where: object }> = [
-  { field: "inspectorName", label: "Missing inspector",  where: { inspectorName: null } },
+  { field: "inspectorName", label: "Missing inspector", where: { inspectorName: null } },
 ];
 
 export async function listFlaggedInspections(vendorId?: string | null) {
@@ -399,41 +400,60 @@ export async function listFlaggedInspections(vendorId?: string | null) {
     ? { OR: [{ vendorId }, { inspector: { vendorId } }] }
     : undefined;
 
-  // Union of all flagged rows across all checks
-  const orClauses = DATA_QUALITY_CHECKS.map((c) => c.where);
-  const andClauses = [
-    ...(vendorFilter ? [vendorFilter] : []),
-    { OR: orClauses },
-  ];
-  const where = { AND: andClauses };
+  const baseSelect = {
+    id:               true,
+    homeownerName:    true,
+    propertyAddress:  true,
+    city:             true,
+    state:            true,
+    inspectionDate:   true,
+    inspectionCompany: true,
+    inspectorName:    true,
+    isDraft:          true,
+    finalStatus:      true,
+    constantPressureSystem: true,
+    photos: { select: { id: true, label: true } },
+  } as const;
 
-  const rows = await db.inspection.findMany({
-    where,
-    orderBy: { inspectionDate: "desc" },
-    select: {
-      id:               true,
-      homeownerName:    true,
-      propertyAddress:  true,
-      city:             true,
-      state:            true,
-      inspectionDate:   true,
-      inspectionCompany: true,
-      inspectorName:    true,
-      isDraft:          true,
-      finalStatus:      true,
-    },
+  // Query 1: simple null-field checks
+  const nullFieldWhere = {
+    AND: [
+      ...(vendorFilter ? [vendorFilter] : []),
+      { OR: DATA_QUALITY_CHECKS.map((c) => c.where) },
+    ],
+  };
+
+  // Query 2: CPS present but no control_box_cps photo
+  const cpsWhere = {
+    AND: [
+      ...(vendorFilter ? [vendorFilter] : []),
+      { constantPressureSystem: true },
+      { photos: { none: { label: "control_box_cps" } } },
+    ],
+  };
+
+  const [nullFieldRows, cpsRows] = await Promise.all([
+    db.inspection.findMany({ where: nullFieldWhere, orderBy: { inspectionDate: "desc" }, select: baseSelect }),
+    db.inspection.findMany({ where: cpsWhere,      orderBy: { inspectionDate: "desc" }, select: baseSelect }),
+  ]);
+
+  // Merge, deduplicate by id, annotate issues
+  const byId = new Map<string, typeof nullFieldRows[0]>();
+  for (const r of [...nullFieldRows, ...cpsRows]) byId.set(r.id, r);
+
+  return [...byId.values()].sort(
+    (a, b) => new Date(b.inspectionDate).getTime() - new Date(a.inspectionDate).getTime()
+  ).map((row) => {
+    const issues: string[] = [];
+    for (const check of DATA_QUALITY_CHECKS) {
+      const val = row[check.field as keyof typeof row];
+      if (val === null || val === undefined) issues.push(check.label);
+    }
+    if (row.constantPressureSystem && !row.photos.some((p) => p.label === "control_box_cps")) {
+      issues.push("CPS photo required");
+    }
+    return { ...row, issues };
   });
-
-  // Annotate each row with which checks failed
-  return rows.map((row) => ({
-    ...row,
-    issues: DATA_QUALITY_CHECKS
-      .filter((c) => {
-        const key = c.field as keyof typeof row;
-        return row[key] === null || row[key] === undefined;
-      })
-      .map((c) => c.label),
-  }));
 }
 
 export async function savePdfUrl(id: string, url: string): Promise<{ error?: string }> {
