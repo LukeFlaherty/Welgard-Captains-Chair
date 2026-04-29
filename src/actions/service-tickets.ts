@@ -52,7 +52,7 @@ export type ServiceTicketFormValues = {
   circuitBreakerReset: string;
   lowPressureSwitch: string;
   backwashCycle: string;
-  pressureGauge: boolean | null;
+  pressureGauge: string;
 
   // Tech response
   faultIdentified: string;
@@ -118,7 +118,7 @@ function buildData(values: ServiceTicketFormValues) {
     circuitBreakerReset: values.circuitBreakerReset || null,
     lowPressureSwitch:  values.lowPressureSwitch || null,
     backwashCycle:      values.backwashCycle || null,
-    pressureGauge:      values.pressureGauge ?? null,
+    pressureGauge:      values.pressureGauge || null,
     faultIdentified:    values.faultIdentified || null,
     repairsPerformed:   values.repairsPerformed || null,
     technicianResponse: values.technicianResponse || null,
@@ -378,6 +378,29 @@ export async function getServiceTicketStats(vendorId?: string | null) {
     db.serviceTicket.count({ where: { ...where, serviceType: "emergency" } }),
   ]);
   return { total, open, scheduled, inProgress, completed, emergency };
+}
+
+// ─── Unlinked vendor tickets (needs-attention feed) ──────────────────────────
+
+export async function listUnlinkedVendorTickets() {
+  return db.serviceTicket.findMany({
+    where: {
+      vendorId: null,
+    },
+    orderBy: { callReceivedAt: "desc" },
+    select: {
+      id: true,
+      ticketNumber: true,
+      memberFirstName: true,
+      memberLastName: true,
+      streetAddress: true,
+      city: true,
+      state: true,
+      serviceCompletedBy: true,
+      callReceivedAt: true,
+      serviceType: true,
+    },
+  });
 }
 
 // ─── GHL webhook ─────────────────────────────────────────────────────────────

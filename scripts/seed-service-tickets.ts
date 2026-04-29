@@ -1,15 +1,16 @@
 /**
- * One-time seed script for service tickets.
- * Usage: npx tsx scripts/seed-service-tickets.ts [path/to/Inspection.csv]
- * Default: scripts/data/ServiceTicket.csv
+ * One-time seed: import service ticket history from CSV.
+ * Deletes ALL existing service tickets, then imports from seed-data CSV.
+ * Tries to link each ticket to an existing Vendor by company name.
+ * Unmatched companies are stored as free-text serviceCompletedBy with no vendorId.
  */
 
 import { config } from "dotenv";
 config({ path: ".env.local" });
 config();
 
-import fs from "fs";
-import path from "path";
+import * as fs from "fs";
+import * as path from "path";
 import { parse } from "csv-parse/sync";
 import { PrismaClient } from "../src/generated/prisma";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -17,256 +18,265 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
-// ─── Hardcoded CSV data (from export) ────────────────────────────────────────
-// The 5 records from the export, newest first (100635→100631)
+type CsvRow = Record<string, string>;
 
-const RECORDS = [
-  {
-    ticketNumber: 100635,
-    memberFirstName: "Neal",
-    memberLastName: "Barton",
-    memberEmail: "neal.barton@zbmidatlantic.com",
-    memberPhone: "703-678-9690",
-    memberPhoneType: "Cell",
-    streetAddress: "3814 Donerin Way",
-    city: "Phoenix",
-    county: "Baltimore County",
-    state: "Maryland",
-    zip: "21131",
-    serviceType: "general_maintenance",
-    status: "scheduled",
-    callReceivedAt: new Date("2026-04-24T08:30:00"),
-    scheduledFor: new Date("2026-04-27T13:00:00"),
-    lastServiceDate: new Date("2023-12-29"),
-    serviceCompletedBy: "R&G Water Systems",
-    customerInquiry:
-      "Experiencing lower pressure after hot water heater was installed. Water pressure initially seems good at hose, but gauge dips to < 20 psi, with no switch turning on - for pump to come on. Member is avail after 1 PM daily.",
-    rightOfFirstRefusal: true,
-    valvesOpen: "dont_know",
-    filterClogged: "dont_know",
-    circuitBreakerReset: "dont_know",
-    lowPressureSwitch: "dont_know",
-    backwashCycle: "yes",
-    isComplete: false,
-  },
-  {
-    ticketNumber: 100634,
-    memberFirstName: "Cindy",
-    memberLastName: "Beavers",
-    memberEmail: "cindy.beavers@icloud.com",
-    memberPhone: "770-689-6895",
-    memberPhoneType: "Cell",
-    memberAltPhone: "443-255-7075",
-    memberAltPhoneType: "Cell",
-    streetAddress: "1640 St Paul St",
-    city: "Hampstead",
-    county: "Carroll County",
-    state: "Maryland",
-    zip: "21074",
-    serviceType: "emergency",
-    status: "completed",
-    callReceivedAt: new Date("2026-04-18T21:50:00"),
-    scheduledFor: new Date("2026-04-19T12:00:00"),
-    lastServiceDate: new Date("2022-07-28"),
-    serviceCompletedBy: "Easterday-Wilson Water Services",
-    customerInquiry:
-      "Member was showering and slowly lost water pressure until it finally stopped. PSI is 10. Resetting the breaker did not restore water. No filtration to be clogged. Son will be home for tech visit.",
-    technicianResponse:
-      "Eqpmnt and well head under home. Tech found the wiring melted, and the tank leaking due to erosion at base and fittings. Pump working overtime due to smaller tank. Submersible pump, tank, fittings, and wiring were removed and replaced. Water restored.",
-    rightOfFirstRefusal: true,
-    valvesOpen: "no",
-    filterClogged: "yes",
-    circuitBreakerReset: "no",
-    lowPressureSwitch: "no",
-    backwashCycle: "yes",
-    invoiceAmount: 5701.18,
-    invoicePaymentType: "Credit Card",
-    invoiceAttachment: "Easterday - $5701.18 - 1640 St Paul 04192026.pdf",
-    isComplete: true,
-    ticketCompletedBy: "williams.angelmarie@gmail.com",
-  },
-  {
-    ticketNumber: 100633,
-    memberFirstName: "Sal",
-    memberLastName: "Espinoza",
-    memberEmail: "sal507@aol.com",
-    memberPhone: "708-275-7546",
-    streetAddress: "4454 Robert Drive",
-    city: "Valdosta",
-    county: "Lowndes County",
-    state: "Georgia",
-    zip: "31605",
-    serviceType: "emergency",
-    status: "in_progress",
-    callReceivedAt: new Date("2026-04-14T01:45:00"),
-    scheduledFor: new Date("2026-04-14T15:00:00"),
-    lastServiceDate: new Date("2025-12-21"),
-    serviceCompletedBy: "Creasy Well Drilling",
-    customerInquiry:
-      "Sal (Member) called. Suddenly Out of Water - Psi at 0; circuit breakers checked. Nothing tripped.",
-    technicianResponse:
-      "Service call completed, with problem being an obstructed/dirty switch. Switch cleaned and system operating normally.",
-    rightOfFirstRefusal: true,
-    valvesOpen: "no",
-    filterClogged: "no",
-    circuitBreakerReset: "dont_know",
-    lowPressureSwitch: "dont_know",
-    invoiceAmount: 150,
-    invoicePaymentType: "Credit Card",
-    amperageReading: 13.0, // "Over 11.99 amps"
-    isComplete: false,
-    completedBy: "Gary Baker",
-  },
-  {
-    ticketNumber: 100632,
-    memberFirstName: "Crystal",
-    memberLastName: "Cuffley",
-    memberEmail: "crystalcuffley@gmail.com",
-    memberPhone: "804-400-2648",
-    streetAddress: "80 Choctaw Ridge",
-    city: "Aylett",
-    county: "King William County",
-    state: "Virginia",
-    zip: "23009",
-    serviceType: "emergency",
-    status: "in_progress",
-    callReceivedAt: new Date("2026-04-08T09:50:00"),
-    scheduledFor: new Date("2026-04-08T14:00:00"),
-    lastServiceDate: new Date("2026-03-29"),
-    serviceCompletedBy: "Royall Pump & Well Co., Inc.",
-    customerInquiry:
-      "Member expressed concern over declining water pressure since switch was installed. No water treatment equipment present. Cannot check pressure gauge.",
-    technicianResponse: "Tech checked system. All operating normally.",
-    isComplete: false,
-    completedBy: "Gary Baker",
-  },
-  {
-    ticketNumber: 100631,
-    memberFirstName: "Craig",
-    memberLastName: "Weller",
-    memberEmail: "cweller426@verizon.net",
-    memberPhone: "410-688-6409",
-    memberPhoneType: "Cell",
-    memberAltPhone: "410-688-6410",
-    memberAltPhoneType: "Cell",
-    streetAddress: "1515 Ryan Road",
-    city: "Fallston",
-    county: "Harford County",
-    state: "Maryland",
-    zip: "21047",
-    serviceType: "emergency",
-    status: "completed",
-    callReceivedAt: new Date("2026-04-04T10:00:00"),
-    scheduledFor: new Date("2026-04-04T12:00:00"),
-    lastServiceDate: new Date("2023-04-21"),
-    serviceCompletedBy: "Liberty Pure Solutions Inc.",
-    customerInquiry:
-      "Called 4.3.26 OOW. Reset circuit breaker and water returned. Called 4.4.26 and is having water inconsistently - on and off. Pump installed 4.21.23.",
-    technicianResponse:
-      "Pressure tank was waterlogged, prematurely placed the pump in thermal overload. Replaced tank, switch, gauge, and pump. System operating normally.",
-    rightOfFirstRefusal: true,
-    valvesOpen: "no",
-    filterClogged: "yes",
-    circuitBreakerReset: "dont_know",
-    lowPressureSwitch: "dont_know",
-    backwashCycle: "yes",
-    invoiceNumber: "135173636",
-    invoiceAmount: 4000,
-    invoicePaymentType: "Credit Card",
-    invoiceAttachment: "Liberty Pure #135173636 - $4000 - 1515 Ryan Road 04042026.pdf",
-    isComplete: true,
-    ticketCompletedBy: "Gary Baker",
-  },
-] as const;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function findVendorId(name: string): Promise<string | null> {
-  if (!name) return null;
-  const n = name.toLowerCase();
-  const vendors = await prisma.vendor.findMany({ select: { id: true, companyName: true } });
-  const exact = vendors.find(
-    (v) => v.companyName.toLowerCase() === n
-  );
-  if (exact) return exact.id;
-  const partial = vendors.find(
-    (v) => v.companyName.toLowerCase().includes(n.split(" ")[0])
-  );
-  return partial?.id ?? null;
+function clean(v: string): string | null {
+  const t = v?.trim();
+  return t || null;
 }
 
-async function main() {
-  console.log("\nSeeding service tickets...\n");
+function parseGlyphicon(v: string): boolean {
+  return v?.includes("glyphicon-ok") ?? false;
+}
 
-  let inserted = 0;
-  let skipped = 0;
-  let errors = 0;
+/** Parse MM/DD/YYYY or YYYY-MM-DD → Date (local midnight) */
+function parseDate(v: string): Date | null {
+  const s = v?.trim();
+  if (!s) return null;
+  const mdy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mdy) {
+    const d = new Date(parseInt(mdy[3]), parseInt(mdy[1]) - 1, parseInt(mdy[2]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const ymd = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) {
+    const d = new Date(parseInt(ymd[1]), parseInt(ymd[2]) - 1, parseInt(ymd[3]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
+}
 
-  for (const rec of RECORDS) {
-    const existing = await prisma.serviceTicket.findUnique({
-      where: { ticketNumber: rec.ticketNumber },
-      select: { id: true },
-    });
-    if (existing) {
-      console.log(`  [skip] #${rec.ticketNumber} already exists`);
-      skipped++;
-      continue;
+/** Combine MM/DD/YYYY date string with HH:MM (24h) time string */
+function parseDateAndTime(dateStr: string, timeStr: string): Date | null {
+  const d = parseDate(dateStr);
+  if (!d) return null;
+  const t = timeStr?.trim();
+  if (t) {
+    const hm = t.match(/^(\d{1,2}):(\d{2})$/);
+    if (hm) d.setHours(parseInt(hm[1]), parseInt(hm[2]), 0, 0);
+  }
+  return d;
+}
+
+/**
+ * scheduledFor: use Service Scheduled For Date for the date (reliable),
+ * extract time from Service Scheduled For Time (which embeds a full datetime
+ * "YYYY-MM-DD HH:MM AM/PM" — but the date part mismatches in 124/138 rows).
+ */
+function parseScheduledFor(dateStr: string, timeStr: string): Date | null {
+  const d = parseDate(dateStr);
+  if (!d) return null;
+  const t = timeStr?.trim();
+  if (t) {
+    const ampm = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (ampm) {
+      let hours = parseInt(ampm[1]);
+      const mins = parseInt(ampm[2]);
+      const period = ampm[3].toUpperCase();
+      if (period === "AM" && hours === 12) hours = 0;
+      if (period === "PM" && hours !== 12) hours += 12;
+      d.setHours(hours, mins, 0, 0);
     }
+  }
+  return d;
+}
 
-    const vendorId = await findVendorId(rec.serviceCompletedBy);
+function mapServiceType(v: string): string {
+  return v?.trim().toLowerCase() === "emergency" ? "emergency" : "general_maintenance";
+}
+
+function mapTriState(v: string): string | null {
+  const s = v?.trim().toLowerCase();
+  if (s === "yes") return "yes";
+  if (s === "no") return "no";
+  if (s === "don't know") return "dont_know";
+  return null;
+}
+
+function parseAmount(v: string): number | null {
+  const s = v?.trim().replace(/[$,\s]/g, "");
+  if (!s) return null;
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+function parseFloat_(v: string): number | null {
+  const s = v?.trim();
+  if (!s) return null;
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+function parseTimestamp(v: string): Date | null {
+  const s = v?.trim();
+  if (!s) return null;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function mapPaymentType(v: string): string | null {
+  const s = v?.trim().toLowerCase();
+  if (!s) return null;
+  if (s === "cash") return "cash";
+  if (s === "check") return "check";
+  if (s === "credit card") return "credit_card";
+  return s;
+}
+
+// ─── Vendor name normalization ────────────────────────────────────────────────
+
+const KNOWN_ALIASES: Record<string, string> = {
+  "valley drillilng corp":                              "valley drilling corp",
+  "r and g water systems":                              "r&g water systems",
+  "tlc well sevice":                                    "tlc well service",
+  "kim snyder acme well repair & drilling llc":         "acme well repair & drilling llc",
+};
+
+function normalizeName(name: string): string {
+  const n = name.trim().toLowerCase().replace(/\s+/g, " ");
+  return KNOWN_ALIASES[n] ?? n;
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
+async function main() {
+  const csvPath = path.join(
+    process.cwd(),
+    "seed-data",
+    "WelGard Service Ticket History 04292026.csv"
+  );
+  if (!fs.existsSync(csvPath)) {
+    console.error(`CSV not found: ${csvPath}`);
+    process.exit(1);
+  }
+
+  const raw = fs.readFileSync(csvPath, { encoding: "utf-8" });
+  const allRows: CsvRow[] = parse(raw, { columns: true, skip_empty_lines: true, bom: true });
+  const rows = allRows.filter((r) => /^\d+$/.test(r["ID"]?.trim()));
+  console.log(`\nLoaded ${rows.length} service ticket rows.\n`);
+
+  // ── Preload vendor cache ──────────────────────────────────────────────────
+  const vendors = await prisma.vendor.findMany({ select: { id: true, companyName: true } });
+  const vendorMap = new Map<string, string>(); // normalized name → id
+  for (const v of vendors) vendorMap.set(normalizeName(v.companyName), v.id);
+  console.log(`Loaded ${vendors.length} vendors for matching.\n`);
+
+  // ── Delete existing service tickets ───────────────────────────────────────
+  const { count: deleted } = await prisma.serviceTicket.deleteMany({});
+  console.log(`Deleted ${deleted} existing service tickets.\n`);
+
+  // ── Insert ────────────────────────────────────────────────────────────────
+  let inserted = 0;
+  let errors = 0;
+  let linked = 0;
+  let unlinked = 0;
+  const createdAtUpdates: Array<{ id: string; createdAt: Date }> = [];
+
+  for (const row of rows) {
+    const ticketNumber    = parseInt(row["ID"].trim(), 10);
+    const memberFirstName = clean(row["Member First Name"]) ?? "Unknown";
+    const memberLastName  = clean(row["Member Last Name"]) ?? "";
+    const streetAddress   = clean(row["Street Address 1"]) ?? "Unknown";
 
     try {
-      await prisma.serviceTicket.create({
+      const companyName = clean(row["Service Completed By"]);
+      let vendorId: string | null = null;
+      if (companyName) {
+        vendorId = vendorMap.get(normalizeName(companyName)) ?? null;
+        if (vendorId) linked++; else unlinked++;
+      }
+
+      const isComplete = parseGlyphicon(row["Service Ticket Complete"]);
+
+      const ticket = await prisma.serviceTicket.create({
         data: {
-          ticketNumber:       rec.ticketNumber,
-          memberFirstName:    rec.memberFirstName,
-          memberLastName:     rec.memberLastName,
-          memberEmail:        rec.memberEmail ?? null,
-          memberPhone:        rec.memberPhone ?? null,
-          memberPhoneType:    (rec as { memberPhoneType?: string }).memberPhoneType ?? null,
-          memberAltPhone:     (rec as { memberAltPhone?: string }).memberAltPhone ?? null,
-          memberAltPhoneType: (rec as { memberAltPhoneType?: string }).memberAltPhoneType ?? null,
-          streetAddress:      rec.streetAddress,
-          city:               rec.city ?? null,
-          county:             rec.county ?? null,
-          state:              rec.state ?? null,
-          zip:                rec.zip ?? null,
-          serviceType:        rec.serviceType,
-          status:             rec.status,
-          callReceivedAt:     rec.callReceivedAt,
-          scheduledFor:       rec.scheduledFor ?? null,
-          lastServiceDate:    rec.lastServiceDate ?? null,
+          ticketNumber,
+
+          memberFirstName,
+          memberLastName,
+          memberEmail:        clean(row["Member Email"]),
+          memberAltEmail:     clean(row["Member Alternate Email"]),
+          memberPhone:        clean(row["Phone Number"]),
+          memberPhoneType:    clean(row["Phone Type"]),
+          memberAltPhone:     clean(row["Alternate Phone Number"]),
+          memberAltPhoneType: clean(row["Alternate Phone Type"]),
+
+          streetAddress,
+          streetAddress2: clean(row["Street Address 2"]),
+          city:           clean(row["City"]),
+          county:         clean(row["County"]),
+          state:          clean(row["State"]),
+          zip:            clean(row["ZIP Code"]),
+
+          serviceType: mapServiceType(row["Service Type"]),
+          status:      isComplete ? "completed" : "open",
+
+          callReceivedAt:  parseDateAndTime(row["Service Call Received Date"], row["Service Call Received Time"]) ?? new Date(),
+          scheduledFor:    parseScheduledFor(row["Service Scheduled For Date"], row["Service Scheduled For Time"]),
+          lastServiceDate: parseDate(row["Last Service Date"]),
+
           vendorId,
-          serviceCompletedBy: rec.serviceCompletedBy,
-          customerInquiry:    rec.customerInquiry ?? null,
-          technicianResponse: (rec as { technicianResponse?: string }).technicianResponse ?? null,
-          rightOfFirstRefusal: (rec as { rightOfFirstRefusal?: boolean }).rightOfFirstRefusal ?? null,
-          valvesOpen:         (rec as { valvesOpen?: string }).valvesOpen ?? null,
-          filterClogged:      (rec as { filterClogged?: string }).filterClogged ?? null,
-          circuitBreakerReset: (rec as { circuitBreakerReset?: string }).circuitBreakerReset ?? null,
-          lowPressureSwitch:  (rec as { lowPressureSwitch?: string }).lowPressureSwitch ?? null,
-          backwashCycle:      (rec as { backwashCycle?: string }).backwashCycle ?? null,
-          amperageReading:    (rec as { amperageReading?: number }).amperageReading ?? null,
-          invoiceNumber:      (rec as { invoiceNumber?: string }).invoiceNumber ?? null,
-          invoiceAmount:      (rec as { invoiceAmount?: number }).invoiceAmount ?? null,
-          invoicePaymentType: (rec as { invoicePaymentType?: string }).invoicePaymentType ?? null,
-          invoiceAttachment:  (rec as { invoiceAttachment?: string }).invoiceAttachment ?? null,
-          isComplete:         rec.isComplete,
-          completedBy:        (rec as { completedBy?: string }).completedBy ?? null,
-          ticketCompletedBy:  (rec as { ticketCompletedBy?: string }).ticketCompletedBy ?? null,
+          serviceCompletedBy: companyName,
+
+          callInNumber:        clean(row["Call In Number"]),
+          customerInquiry:     clean(row["Customer Inquiry"]),
+          customerFollowUp:    clean(row["Customer Follow Up"]),
+          specialInstructions: clean(row["Special Instructions"]),
+
+          rightOfFirstRefusal: null,
+          valvesOpen:          mapTriState(row["Valves Open"]),
+          filterClogged:       mapTriState(row["Filter Clogged"]),
+          circuitBreakerReset: mapTriState(row["Circuit Breaker Reset"]),
+          lowPressureSwitch:   mapTriState(row["Low Pressure Switch"]),
+          backwashCycle:       mapTriState(row["Backwash Cycle"]),
+          pressureGauge:       mapTriState(row["Pressure Gauge"]),
+
+          technicianResponse: clean(row["Technician Response"]),
+          amperageReading:    parseFloat_(row["Amperage Reading"]),
+
+          invoiceNumber:      clean(row["Invoice Number"]),
+          invoiceAmount:      parseAmount(row["Invoice Amount"]),
+          invoicePaymentType: mapPaymentType(row["Invoice Payment Type"]),
+          invoiceAttachment:  clean(row["Invoice Attachment"]),
+
+          isComplete,
+          ticketCompletedBy: clean(row["Ticket Completed By"]),
         },
+        select: { id: true },
       });
-      console.log(`  [ok]   #${rec.ticketNumber} — ${rec.memberFirstName} ${rec.memberLastName}`);
+
+      const createdAt = parseTimestamp(row["Created Date/Time"]);
+      if (createdAt) createdAtUpdates.push({ id: ticket.id, createdAt });
+
+      const suffix = vendorId ? "" : ` (unlinked: ${companyName ?? "no company"})`;
+      console.log(`  [ok] #${ticketNumber} ${memberFirstName} ${memberLastName}${suffix}`);
       inserted++;
     } catch (err) {
-      console.error(`  [err]  #${rec.ticketNumber}:`, err);
+      console.error(`  [err] #${ticketNumber} ${memberFirstName} ${memberLastName}:`, err);
       errors++;
     }
   }
 
-  console.log(`\n─────────────────────────────`);
-  console.log(`  Inserted: ${inserted}`);
-  console.log(`  Skipped:  ${skipped}`);
-  console.log(`  Errors:   ${errors}`);
-  console.log(`─────────────────────────────\n`);
+  console.log(`\nInserted: ${inserted}  Errors: ${errors}`);
+  console.log(`Vendor links: ${linked} linked, ${unlinked} unlinked (free-text only)\n`);
+
+  // ── Backfill createdAt ────────────────────────────────────────────────────
+  if (createdAtUpdates.length) {
+    const CHUNK = 200;
+    for (let i = 0; i < createdAtUpdates.length; i += CHUNK) {
+      const chunk = createdAtUpdates.slice(i, i + CHUNK);
+      const stmts = chunk.map(
+        ({ id, createdAt }) =>
+          prisma.$executeRaw`UPDATE "ServiceTicket" SET "createdAt" = ${createdAt} WHERE "id" = ${id}`
+      );
+      await prisma.$transaction(stmts as unknown as Parameters<typeof prisma.$transaction>[0], { timeout: 30000 });
+    }
+    console.log(`Backfilled createdAt for ${createdAtUpdates.length} tickets.\n`);
+  }
+
+  console.log("Done.\n");
 }
 
 main()

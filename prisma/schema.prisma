@@ -335,7 +335,7 @@ model ServiceTicket {
   circuitBreakerReset String?  // yes | no | dont_know
   lowPressureSwitch   String?  // yes | no | dont_know
   backwashCycle       String?  // yes | no | dont_know
-  pressureGauge       Boolean?
+  pressureGauge       String?  // yes | no | dont_know
 
   // Technician response (team/admin fills post-service)
   faultIdentified    String?

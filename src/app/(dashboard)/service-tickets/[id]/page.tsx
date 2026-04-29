@@ -261,7 +261,7 @@ export default async function ServiceTicketDetailPage({ params }: Props) {
             {ticket.circuitBreakerReset && <Row label="Circuit Breaker Reset" value={TRI_LABEL[ticket.circuitBreakerReset] ?? ticket.circuitBreakerReset} />}
             {ticket.lowPressureSwitch && <Row label="Low Pressure Switch" value={TRI_LABEL[ticket.lowPressureSwitch] ?? ticket.lowPressureSwitch} />}
             {ticket.backwashCycle && <Row label="Backwash Cycle" value={TRI_LABEL[ticket.backwashCycle] ?? ticket.backwashCycle} />}
-            {ticket.pressureGauge != null && <Row label="Pressure Gauge" value={ticket.pressureGauge ? "Yes" : "No"} />}
+            {ticket.pressureGauge && <Row label="Pressure Gauge" value={TRI_LABEL[ticket.pressureGauge] ?? ticket.pressureGauge} />}
           </Section>
         </div>
 

@@ -105,7 +105,7 @@ export function ServiceIntakeForm() {
       circuitBreakerReset: "",
       lowPressureSwitch:  "",
       backwashCycle:      "",
-      pressureGauge:      null,
+      pressureGauge:      "",
       faultIdentified:    "",
       repairsPerformed:   "",
       technicianResponse: "",

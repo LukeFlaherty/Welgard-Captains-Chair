@@ -61,7 +61,7 @@ const schema = z.object({
   circuitBreakerReset: z.string().optional().default(""),
   lowPressureSwitch:   z.string().optional().default(""),
   backwashCycle:       z.string().optional().default(""),
-  pressureGauge:       z.boolean().nullable().default(null),
+  pressureGauge:       z.string().optional().default(""),
   faultIdentified:    z.string().optional().default(""),
   repairsPerformed:   z.string().optional().default(""),
   technicianResponse: z.string().optional().default(""),
@@ -330,7 +330,7 @@ export type ExistingTicket = {
   circuitBreakerReset: string | null;
   lowPressureSwitch: string | null;
   backwashCycle: string | null;
-  pressureGauge: boolean | null;
+  pressureGauge: string | null;
   faultIdentified: string | null;
   repairsPerformed: string | null;
   technicianResponse: string | null;
@@ -404,7 +404,7 @@ export function ServiceTicketForm({ mode, ticket, vendors, isAdmin }: Props) {
           circuitBreakerReset: ticket.circuitBreakerReset ?? "",
           lowPressureSwitch:  ticket.lowPressureSwitch ?? "",
           backwashCycle:      ticket.backwashCycle ?? "",
-          pressureGauge:      ticket.pressureGauge,
+          pressureGauge:      ticket.pressureGauge ?? "",
           faultIdentified:    ticket.faultIdentified ?? "",
           repairsPerformed:   ticket.repairsPerformed ?? "",
           technicianResponse: ticket.technicianResponse ?? "",
@@ -425,7 +425,7 @@ export function ServiceTicketForm({ mode, ticket, vendors, isAdmin }: Props) {
           status: "open",
           serviceType: "",
           rightOfFirstRefusal: null,
-          pressureGauge: null,
+          pressureGauge: "",
           isComplete: false,
         },
   });
@@ -636,6 +636,7 @@ export function ServiceTicketForm({ mode, ticket, vendors, isAdmin }: Props) {
             ["circuitBreakerReset", "Circuit Breaker Reset"],
             ["lowPressureSwitch", "Low Pressure Switch"],
             ["backwashCycle", "Backwash Cycle"],
+            ["pressureGauge", "Pressure Gauge"],
           ] as const).map(([field, label]) => (
             <Field key={field} label={label}>
               <TriSelect
@@ -644,13 +645,6 @@ export function ServiceTicketForm({ mode, ticket, vendors, isAdmin }: Props) {
               />
             </Field>
           ))}
-          <div className="flex items-center justify-between py-1">
-            <Label>Pressure Gauge</Label>
-            <Switch
-              checked={watch("pressureGauge") === true}
-              onCheckedChange={(c) => setValue("pressureGauge", c ? true : false)}
-            />
-          </div>
         </CardContent>
       </Card>
 

@@ -238,17 +238,52 @@ function mapEquipmentStatus(raw: string): string | null {
   return null;
 }
 
-function deriveStatus(row: CsvRow): string {
-  const statuses = [
-    row["External Equipment"],
-    row["Internal Equipment"],
-    row["Cycle Time Observation"],
-    row["Well Yield Observation"],
-  ];
-  if (statuses.every((s) => s.trim().toLowerCase().includes("within acceptable range"))) {
-    return "green";
+const INELIGIBLE_STATES = ["CA", "TX", "FL"];
+
+function deriveStatusAndTier(row: CsvRow): {
+  systemStatus: string;
+  finalStatus: string;
+  membershipTier: string | null;
+} {
+  const ext   = mapEquipmentStatus(row["External Equipment"]);
+  const int_  = mapEquipmentStatus(row["Internal Equipment"]);
+  const cycle = mapEquipmentStatus(row["Cycle Time Observation"]);
+  const yield_ = mapEquipmentStatus(row["Well Yield Observation"]);
+  const eligibleForSuperior = parseGlyphicon(row["Eligible for Superior"])
+    ? true
+    : row["Eligible for Superior"].trim().toLowerCase() === "no"
+    ? false
+    : null;
+
+  // Normalize state to 2-letter abbreviation for the ineligible-state check
+  const stateRaw = (row["State"] ?? "").trim();
+  const stateUpper = stateRaw.length === 2
+    ? stateRaw.toUpperCase()
+    : stateRaw.toUpperCase().slice(0, 2); // fallback — good enough for the 3 ineligible states
+  const stateIneligible = INELIGIBLE_STATES.includes(stateUpper);
+
+  const allDetermined = ext !== null && int_ !== null && cycle !== null && yield_ !== null;
+  if (!allDetermined) {
+    return { systemStatus: "green", finalStatus: "green", membershipTier: null };
   }
-  return "yellow";
+
+  const allPass = ext === "pass" && int_ === "pass" && cycle === "pass" && yield_ === "pass";
+  const majorItemsFail = int_ === "needs_attention" || cycle === "needs_attention";
+
+  let membershipTier: string | null;
+  let systemStatus: string;
+
+  if (allPass && !stateIneligible) {
+    membershipTier = "premium";    systemStatus = "green";
+  } else if (eligibleForSuperior === true) {
+    membershipTier = "superior";   systemStatus = "yellow";
+  } else if (stateIneligible || majorItemsFail) {
+    membershipTier = "ineligible"; systemStatus = "ineligible";
+  } else {
+    membershipTier = "standard";   systemStatus = "red";
+  }
+
+  return { systemStatus, finalStatus: systemStatus, membershipTier };
 }
 
 // ─── Entity caches ────────────────────────────────────────────────────────────
@@ -519,6 +554,7 @@ async function main() {
       const wellDepthFt = wellDepthUnknown ? null : parseNum(row["Depth"]);
 
       const isComplete = parseGlyphicon(row["Complete"]);
+      const { systemStatus, finalStatus, membershipTier } = deriveStatusAndTier(row);
 
       const inspection = await prisma.inspection.create({
         data: {
@@ -607,8 +643,9 @@ async function main() {
           internalReviewerNotes: clean(row["Reviewed By"]),
 
           // Status derived from the 4 category fields
-          systemStatus: deriveStatus(row),
-          finalStatus:  deriveStatus(row),
+          systemStatus,
+          finalStatus,
+          membershipTier,
 
           isDraft: !isComplete,
           wellCalculationVersion: 2,

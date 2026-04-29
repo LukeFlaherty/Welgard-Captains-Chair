@@ -4,17 +4,23 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft, Pencil, Building2, UserCheck, Users, ClipboardCheck,
   Mail, Phone, FileText, MapPin, Globe, Calendar, StickyNote, Clock,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { getVendor } from "@/actions/vendors";
+import { getVendor, listVendorInspections } from "@/actions/vendors";
 
 export const metadata: Metadata = { title: "Vendor" };
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ id: string }> };
+const PAGE_SIZE = 50;
+
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ ipage?: string }>;
+};
 
 const RATING_LABELS: Record<string, { label: string; cls: string }> = {
   "1": { label: "Rating: 1 (Best)", cls: "bg-green-100 text-green-700 border-green-300" },
@@ -46,14 +52,25 @@ function InfoCard({ label, value, icon }: { label: string; value: string; icon?:
   );
 }
 
-export default async function VendorDetailPage({ params }: Props) {
+export default async function VendorDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const vendor = await getVendor(id);
+  const { ipage } = await searchParams;
+  const inspectionPage = Math.max(1, parseInt(ipage ?? "1", 10) || 1);
+
+  const [vendor, { data: inspections, total: inspectionTotal }] = await Promise.all([
+    getVendor(id),
+    listVendorInspections(id, { page: inspectionPage, pageSize: PAGE_SIZE }),
+  ]);
+
   if (!vendor) notFound();
 
   const rating = vendor.rating ? RATING_LABELS[vendor.rating] : null;
   const location = [vendor.city, vendor.county, vendor.state, vendor.zip].filter(Boolean).join(", ");
   const address = [vendor.streetAddress, vendor.streetAddress2].filter(Boolean).join(", ");
+
+  const inspectionStart = Math.min((inspectionPage - 1) * PAGE_SIZE + 1, inspectionTotal);
+  const inspectionEnd = Math.min(inspectionPage * PAGE_SIZE, inspectionTotal);
+  const totalPages = Math.ceil(inspectionTotal / PAGE_SIZE);
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-8 max-w-5xl mx-auto w-full">
@@ -246,49 +263,106 @@ export default async function VendorDetailPage({ params }: Props) {
         </section>
       </div>
 
-      {/* Recent inspections */}
-      {vendor.inspections.length > 0 && (
-        <section className="flex flex-col gap-3">
+      {/* Inspections — paginated */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <ClipboardCheck className="w-4 h-4 text-muted-foreground" />
-            <h2 className="font-semibold text-sm">Recent Inspections</h2>
+            <h2 className="font-semibold text-sm">
+              Inspections ({inspectionTotal})
+            </h2>
           </div>
-          <div className="border rounded-xl divide-y overflow-hidden">
-            {vendor.inspections.map((insp) => (
-              <div key={insp.id} className="flex items-center justify-between p-3 gap-3">
-                <div className="flex flex-col gap-0.5">
-                  <Link
-                    href={`/inspections/${insp.id}`}
-                    className="text-sm font-medium hover:underline"
-                  >
-                    {insp.homeownerName}
-                  </Link>
-                  <span className="text-xs text-muted-foreground">
-                    {insp.propertyAddress}{insp.city ? `, ${insp.city}` : ""}{insp.state ? ` ${insp.state}` : ""}
-                  </span>
+          {inspectionTotal > PAGE_SIZE && (
+            <span className="text-xs text-muted-foreground">
+              Showing {inspectionStart}–{inspectionEnd} of {inspectionTotal}
+            </span>
+          )}
+        </div>
+
+        {inspectionTotal === 0 ? (
+          <div className="border rounded-xl p-6 text-center text-sm text-muted-foreground bg-muted/30">
+            No inspections linked to this company yet.
+          </div>
+        ) : (
+          <>
+            <div className="border rounded-xl divide-y overflow-hidden">
+              {inspections.map((insp) => (
+                <div key={insp.id} className="flex items-center justify-between p-3 gap-3">
+                  <div className="flex flex-col gap-0.5">
+                    <Link
+                      href={`/inspections/${insp.id}`}
+                      className="text-sm font-medium hover:underline"
+                    >
+                      {insp.homeownerName}
+                    </Link>
+                    <span className="text-xs text-muted-foreground">
+                      {insp.propertyAddress}{insp.city ? `, ${insp.city}` : ""}{insp.state ? ` ${insp.state}` : ""}
+                    </span>
+                    {insp.inspectorName && (
+                      <span className="text-xs text-muted-foreground">{insp.inspectorName}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {insp.reportId && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                        <FileText className="w-3 h-3" />{insp.reportId}
+                      </span>
+                    )}
+                    {insp.isDraft ? (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">Draft</Badge>
+                    ) : (
+                      <span className={`text-xs font-medium capitalize ${FINAL_STATUS_COLORS[insp.finalStatus] ?? ""}`}>
+                        {insp.finalStatus}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(insp.inspectionDate), "MMM d, yyyy")}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {insp.reportId && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                      <FileText className="w-3 h-3" />{insp.reportId}
-                    </span>
-                  )}
-                  {insp.isDraft ? (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">Draft</Badge>
+              ))}
+            </div>
+
+            {inspectionTotal > PAGE_SIZE && (
+              <div className="flex items-center justify-between gap-4 px-1 py-1">
+                <span className="text-xs text-muted-foreground">
+                  Page {inspectionPage} of {totalPages}
+                </span>
+                <div className="flex items-center gap-1">
+                  {inspectionPage > 1 ? (
+                    <Link
+                      href={`/vendors/${id}?ipage=${inspectionPage - 1}`}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1")}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Link>
                   ) : (
-                    <span className={`text-xs font-medium capitalize ${FINAL_STATUS_COLORS[insp.finalStatus] ?? ""}`}>
-                      {insp.finalStatus}
+                    <span className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1 opacity-40 pointer-events-none")}>
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
                     </span>
                   )}
-                  <span className="text-xs text-muted-foreground">
-                    {format(new Date(insp.inspectionDate), "MMM d, yyyy")}
-                  </span>
+                  {inspectionPage < totalPages ? (
+                    <Link
+                      href={`/vendors/${id}?ipage=${inspectionPage + 1}`}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1")}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  ) : (
+                    <span className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1 opacity-40 pointer-events-none")}>
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </span>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
-      )}
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

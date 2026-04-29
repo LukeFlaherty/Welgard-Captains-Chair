@@ -114,13 +114,38 @@ export async function getVendor(id: string) {
     include: {
       inspectors: { orderBy: { name: "asc" }, select: { id: true, name: true, email: true, status: true, yearsExperience: true, licenseNumber: true } },
       users: { orderBy: { createdAt: "asc" }, select: { id: true, name: true, email: true, role: true, createdAt: true } },
-      inspections: {
-        orderBy: { inspectionDate: "desc" },
-        take: 10,
-        select: { id: true, homeownerName: true, propertyAddress: true, city: true, state: true, inspectionDate: true, finalStatus: true, isDraft: true, reportId: true },
-      },
     },
   });
+}
+
+export async function listVendorInspections(
+  vendorId: string,
+  opts: { page?: number; pageSize?: number } = {}
+) {
+  const { page = 1, pageSize = 50 } = opts;
+  const skip = (page - 1) * pageSize;
+  const [data, total] = await Promise.all([
+    db.inspection.findMany({
+      where: { vendorId },
+      orderBy: { inspectionDate: "desc" },
+      skip,
+      take: pageSize,
+      select: {
+        id:              true,
+        homeownerName:   true,
+        propertyAddress: true,
+        city:            true,
+        state:           true,
+        inspectionDate:  true,
+        inspectorName:   true,
+        finalStatus:     true,
+        isDraft:         true,
+        reportId:        true,
+      },
+    }),
+    db.inspection.count({ where: { vendorId } }),
+  ]);
+  return { data, total };
 }
 
 export async function createVendor(

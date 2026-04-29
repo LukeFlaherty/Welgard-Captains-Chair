@@ -329,19 +329,111 @@ export async function getInspection(id: string) {
   });
 }
 
-export async function listInspections(vendorId?: string | null) {
-  return db.inspection.findMany({
-    where: vendorId
-      ? {
-          OR: [
-            { vendorId },
-            { inspector: { vendorId } },
-          ],
-        }
-      : undefined,
-    orderBy: { createdAt: "desc" },
-    include: { photos: { take: 1 } },
+export async function listInspections(opts: {
+  vendorId?: string | null;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+} = {}) {
+  const { vendorId, search, page = 1, pageSize = 100 } = opts;
+  const skip = (page - 1) * pageSize;
+
+  const andClauses: object[] = [];
+  if (vendorId) {
+    andClauses.push({ OR: [{ vendorId }, { inspector: { vendorId } }] });
+  }
+  if (search) {
+    andClauses.push({
+      OR: [
+        { homeownerName:     { contains: search, mode: "insensitive" } },
+        { propertyAddress:   { contains: search, mode: "insensitive" } },
+        { city:              { contains: search, mode: "insensitive" } },
+        { state:             { contains: search, mode: "insensitive" } },
+        { inspectorName:     { contains: search, mode: "insensitive" } },
+        { inspectionCompany: { contains: search, mode: "insensitive" } },
+      ],
+    });
+  }
+  const where = andClauses.length ? { AND: andClauses } : {};
+
+  const [data, total, statusGroups] = await Promise.all([
+    db.inspection.findMany({
+      where,
+      orderBy: { inspectionDate: "desc" },
+      skip,
+      take: pageSize,
+      select: {
+        id:               true,
+        homeownerName:    true,
+        propertyAddress:  true,
+        city:             true,
+        state:            true,
+        inspectionDate:   true,
+        inspectorName:    true,
+        finalStatus:      true,
+        isDraft:          true,
+        generatedPdfUrl:  true,
+        createdAt:        true,
+        activity:         true,
+      },
+    }),
+    db.inspection.count({ where }),
+    db.inspection.groupBy({ by: ["finalStatus"], where, _count: { _all: true } }),
+  ]);
+
+  const statusCounts: Record<string, number> = Object.fromEntries(
+    statusGroups.map((g) => [g.finalStatus, g._count._all])
+  );
+
+  return { data, total, statusCounts };
+}
+
+// Fields considered critical — null values here get flagged for manual entry.
+// Extend this list as new data quality rules are identified.
+const DATA_QUALITY_CHECKS: Array<{ field: string; label: string; where: object }> = [
+  { field: "inspectorName", label: "Missing inspector",  where: { inspectorName: null } },
+];
+
+export async function listFlaggedInspections(vendorId?: string | null) {
+  const vendorFilter = vendorId
+    ? { OR: [{ vendorId }, { inspector: { vendorId } }] }
+    : undefined;
+
+  // Union of all flagged rows across all checks
+  const orClauses = DATA_QUALITY_CHECKS.map((c) => c.where);
+  const andClauses = [
+    ...(vendorFilter ? [vendorFilter] : []),
+    { OR: orClauses },
+  ];
+  const where = { AND: andClauses };
+
+  const rows = await db.inspection.findMany({
+    where,
+    orderBy: { inspectionDate: "desc" },
+    select: {
+      id:               true,
+      homeownerName:    true,
+      propertyAddress:  true,
+      city:             true,
+      state:            true,
+      inspectionDate:   true,
+      inspectionCompany: true,
+      inspectorName:    true,
+      isDraft:          true,
+      finalStatus:      true,
+    },
   });
+
+  // Annotate each row with which checks failed
+  return rows.map((row) => ({
+    ...row,
+    issues: DATA_QUALITY_CHECKS
+      .filter((c) => {
+        const key = c.field as keyof typeof row;
+        return row[key] === null || row[key] === undefined;
+      })
+      .map((c) => c.label),
+  }));
 }
 
 export async function savePdfUrl(id: string, url: string): Promise<{ error?: string }> {
