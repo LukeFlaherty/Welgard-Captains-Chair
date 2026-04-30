@@ -359,7 +359,7 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
             <View wrap={false} style={s.section}>
               <SectionTitle>Evaluation Notes</SectionTitle>
               {inspection.statusRationale.map((note: string, i: number) => (
-                <View key={i} style={s.bulletRow}>
+                <View key={i} wrap={false} style={s.bulletRow}>
                   <View style={s.bulletDot} />
                   <Text style={s.bulletText}>{note}</Text>
                 </View>
@@ -493,8 +493,11 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
 
           {/* Notes & Findings — always shown */}
           <View style={s.section}>
-            <SectionTitle>Findings & Recommendations</SectionTitle>
-            <NoteBox label="Member-Facing Summary"       value={inspection.memberFacingSummary} />
+            {/* Keep section title pinned to the first note so it never orphans at page bottom */}
+            <View wrap={false}>
+              <SectionTitle>Findings & Recommendations</SectionTitle>
+              <NoteBox label="Member-Facing Summary" value={inspection.memberFacingSummary} />
+            </View>
             <NoteBox label="Required Repairs"            value={inspection.requiredRepairs} alert={!!inspection.requiredRepairs} />
             <NoteBox label="Recommended Repairs / Updates" value={inspection.recommendedRepairs} />
             <NoteBox label="Inspector Notes"             value={inspection.inspectorNotes} />
@@ -513,25 +516,33 @@ export function WellReportPDF({ inspection, logoPath }: Props) {
             </View>
           )}
 
-          {/* Photos — all 7 slots always shown */}
+          {/* Photos — all slots shown in rows of 3, each row kept together */}
           <View style={s.section}>
-            <SectionTitle>Inspection Photos</SectionTitle>
-            <View style={s.photoGrid}>
-              {PHOTO_LABELS.map(({ key, label }) => {
-                const photo = inspection.photos.find((p) => p.label === key);
-                return (
-                  <View key={key} style={s.photoItem}>
-                    {photo ? (
-                      <Image src={photo.url} style={s.photoImg} />
-                    ) : (
-                      <View style={s.photoPlaceholder}>
-                        <Text style={{ fontSize: 7, color: C.muted, textAlign: "center" }}>No photo</Text>
-                      </View>
-                    )}
-                    <Text style={s.photoCaption}>{label}</Text>
+            <View wrap={false}>
+              <SectionTitle>Inspection Photos</SectionTitle>
+              {(() => {
+                const rows: (typeof PHOTO_LABELS)[] = [];
+                for (let i = 0; i < PHOTO_LABELS.length; i += 3) rows.push(PHOTO_LABELS.slice(i, i + 3));
+                return rows.map((row, ri) => (
+                  <View key={ri} wrap={false} style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+                    {row.map(({ key, label }) => {
+                      const photo = inspection.photos.find((p) => p.label === key);
+                      return (
+                        <View key={key} style={s.photoItem}>
+                          {photo ? (
+                            <Image src={photo.url} style={s.photoImg} />
+                          ) : (
+                            <View style={s.photoPlaceholder}>
+                              <Text style={{ fontSize: 7, color: C.muted, textAlign: "center" }}>No photo</Text>
+                            </View>
+                          )}
+                          <Text style={s.photoCaption}>{label}</Text>
+                        </View>
+                      );
+                    })}
                   </View>
-                );
-              })}
+                ));
+              })()}
             </View>
           </View>
 

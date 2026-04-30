@@ -52,6 +52,7 @@ import {
   ACTIVITY_OPTIONS,
   FINAL_STATUS_OPTIONS,
   PHOTO_LABELS,
+  US_STATE_OPTIONS,
 } from "@/config/inspection-fields";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -614,8 +615,20 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
               <Field label="City" error={errors.city?.message}>
                 <Input {...register("city")} placeholder="Springfield" />
               </Field>
-              <Field label="State" error={errors.state?.message} hint="Used for eligibility calculations. 2-letter code.">
-                <Input {...register("state")} placeholder="IL" maxLength={2} className="uppercase" />
+              <Field label="State" error={errors.state?.message}>
+                <Select
+                  value={watched.state ?? ""}
+                  onValueChange={(v) => setValue("state", v ?? "", { shouldDirty: true })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select state…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {US_STATE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
               <Field label="ZIP Code" error={errors.zip?.message}>
                 <Input {...register("zip")} placeholder="62701" />
@@ -1196,21 +1209,21 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
               <CardTitle>Inspection Photos</CardTitle>
               <CardDescription>Upload photos included in the PDF report. Saved immediately on upload.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-6">
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-5">
               {PHOTO_LABELS.map(({ key: label, label: display, hint }) => {
                 const existing = uploadedPhotos.find((p) => p.label === label);
                 const isCpsRequired = label === "control_box_cps" && watched.constantPressureSystem && !existing;
                 return (
                   <div key={label} className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
-                      <Label className={cn("text-sm font-medium", isCpsRequired && "text-orange-700")}>
+                    <div className="flex items-center gap-1.5">
+                      <Label className={cn("text-sm font-medium leading-tight", isCpsRequired && "text-orange-700")}>
                         {display}
                         {isCpsRequired && <span className="ml-1 text-orange-600">*</span>}
                       </Label>
                     </div>
                     {hint && <p className="text-xs text-muted-foreground -mt-1">{hint}</p>}
                     {existing ? (
-                      <div className="relative w-48 h-32 rounded-lg overflow-hidden border">
+                      <div className="relative w-full aspect-video rounded-lg overflow-hidden border">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={existing.url} alt={display} className="w-full h-full object-cover" />
                         <button
@@ -1228,7 +1241,7 @@ export function InspectionForm({ mode, inspection, inspectors = [] }: Props) {
                       </div>
                     ) : (
                       <label className={cn(
-                        "flex flex-col items-center justify-center w-48 h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
+                        "flex flex-col items-center justify-center w-full aspect-video border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors",
                         isCpsRequired && "border-orange-400 bg-orange-50 hover:bg-orange-100"
                       )}>
                         {uploadingPhoto ? (
