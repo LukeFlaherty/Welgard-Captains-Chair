@@ -7,6 +7,7 @@ import {
   getActor, logActivity, diffObjects, fieldLabel,
   VENDOR_SKIP_FIELDS,
 } from "@/lib/activity";
+import { searchContactByEmail } from "@/lib/ghl";
 
 async function requireAdminOrTeamMember() {
   const session = await auth();
@@ -274,4 +275,92 @@ export async function listVendorsForSelect() {
     orderBy: { companyName: "asc" },
     select: { id: true, companyName: true },
   });
+}
+
+// ─── GHL — vendor contact sync ────────────────────────────────────────────────
+
+/**
+ * Looks up the vendor by email in GHL and stores the contact ID on the Vendor record.
+ * This ID persists across all service tickets that use this vendor, enabling faster
+ * future lookups and the broader GHL integration roadmap.
+ * Mirrors the pattern from syncInspectionToGhl in inspections.ts.
+ */
+export async function syncVendorToGhl(
+  vendorId: string
+): Promise<{ ghlContactId?: string; error?: string }> {
+  if (!process.env.GHL_API_KEY) {
+    return { error: "GHL integration is not configured (missing API key)." };
+  }
+
+  await requireAdminOrTeamMember();
+
+  const vendor = await db.vendor.findUnique({ where: { id: vendorId } });
+  if (!vendor) return { error: "Vendor not found." };
+
+  if (!vendor.email) {
+    return { error: "No email on this vendor record — cannot look up a GHL contact." };
+  }
+
+  const actor = await getActor();
+  const label = vendor.companyName;
+
+  // ─── 1. Find contact by email ──────────────────────────────────────────────
+  let contact;
+  try {
+    contact = await searchContactByEmail(vendor.email);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[syncVendorToGhl] contact search error:", msg);
+    await db.vendor.update({ where: { id: vendorId }, data: { ghlSyncStatus: "error" } });
+    await logActivity({
+      actor,
+      entityType: "vendor",
+      entityId: vendorId,
+      entityLabel: label,
+      action: "synced",
+      newValue: "error",
+      description: `GHL sync failed for vendor "${label}": could not reach GHL — ${msg}`,
+    });
+    return { error: `Could not reach GHL: ${msg}` };
+  }
+
+  if (!contact) {
+    await db.vendor.update({ where: { id: vendorId }, data: { ghlSyncStatus: "error" } });
+    await logActivity({
+      actor,
+      entityType: "vendor",
+      entityId: vendorId,
+      entityLabel: label,
+      action: "synced",
+      newValue: "error",
+      description: `GHL sync failed for vendor "${label}": no contact found with email "${vendor.email}"`,
+    });
+    return {
+      error: `No GHL contact found with email "${vendor.email}". Make sure the vendor exists as a contact in GHL first.`,
+    };
+  }
+
+  // ─── 2. Persist contact ID + sync status on the Vendor record ────────────
+  await db.vendor.update({
+    where: { id: vendorId },
+    data: {
+      ghlContactId:    contact.id,
+      ghlSyncStatus:   "synced",
+      ghlLastSyncedAt: new Date(),
+    },
+  });
+
+  revalidatePath(`/vendors/${vendorId}`);
+
+  await logActivity({
+    actor,
+    entityType: "vendor",
+    entityId: vendorId,
+    entityLabel: label,
+    action: "synced",
+    newValue: "synced",
+    description: `Synced vendor "${label}" to GHL contact ${contact.id}`,
+  });
+
+  return { ghlContactId: contact.id };
 }

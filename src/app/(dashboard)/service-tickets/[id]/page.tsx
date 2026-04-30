@@ -203,9 +203,30 @@ export default async function ServiceTicketDetailPage({ params }: Props) {
         )}
       </div>
 
-      {/* GHL buttons (team/admin only, completed tickets only) */}
-      {isTeam && ticket.status === "completed" && (
-        <GhlButtons ticketId={ticket.id} />
+      {/* GHL integration panel — always visible to team/admin so sync can happen at any stage */}
+      {isTeam && (
+        <GhlButtons
+          ticketId={ticket.id}
+          isComplete={ticket.isComplete}
+
+          memberEmail={ticket.memberEmail ?? null}
+          memberGhlContactId={ticket.ghlContactId ?? null}
+          memberGhlSyncStatus={ticket.ghlSyncStatus}
+          memberGhlLastSyncedAt={ticket.ghlLastSyncedAt ?? null}
+          memberNotifiedAt={ticket.memberNotifiedAt ?? null}
+          memberNotifyStatus={ticket.memberNotifyStatus ?? null}
+
+          vendorId={ticket.vendor?.id ?? null}
+          vendorName={ticket.vendor?.companyName ?? null}
+          vendorEmail={ticket.vendor?.email ?? null}
+          vendorGhlContactId={ticket.vendor?.ghlContactId ?? null}
+          vendorGhlSyncStatus={ticket.vendor?.ghlSyncStatus ?? "pending"}
+          vendorGhlLastSyncedAt={ticket.vendor?.ghlLastSyncedAt ?? null}
+          partnerNotifiedAt={ticket.partnerNotifiedAt ?? null}
+          partnerNotifyStatus={ticket.partnerNotifyStatus ?? null}
+
+          ghlLocationId={process.env.GHL_LOCATION_ID ?? null}
+        />
       )}
 
       <div className="rounded-xl border bg-card divide-y">

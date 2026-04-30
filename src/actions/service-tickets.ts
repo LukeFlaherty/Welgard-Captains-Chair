@@ -6,6 +6,7 @@ import {
   getActor, logActivity, diffObjects, fieldLabel,
   SERVICE_TICKET_SKIP_FIELDS,
 } from "@/lib/activity";
+import { searchContactByEmail } from "@/lib/ghl";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -279,7 +280,14 @@ export async function deleteServiceTicket(id: string): Promise<{ error?: string 
 export async function getServiceTicket(id: string) {
   return db.serviceTicket.findUnique({
     where: { id },
-    include: { vendor: { select: { id: true, companyName: true, email: true, phone: true } } },
+    include: {
+      vendor: {
+        select: {
+          id: true, companyName: true, email: true, phone: true,
+          ghlContactId: true, ghlSyncStatus: true, ghlLastSyncedAt: true,
+        },
+      },
+    },
   });
 }
 
@@ -403,8 +411,98 @@ export async function listUnlinkedVendorTickets() {
   });
 }
 
-// ─── GHL webhook ─────────────────────────────────────────────────────────────
+// ─── GHL — member contact sync ───────────────────────────────────────────────
 
+/**
+ * Looks up the homeowner by email in GHL and stores the contact ID on the ticket.
+ * No custom fields are pushed yet — those GHL fields will be added in a future phase.
+ * Mirrors the pattern from syncInspectionToGhl in inspections.ts.
+ */
+export async function syncMemberToGhl(
+  ticketId: string
+): Promise<{ ghlContactId?: string; error?: string }> {
+  if (!process.env.GHL_API_KEY) {
+    return { error: "GHL integration is not configured (missing API key)." };
+  }
+
+  const ticket = await getServiceTicket(ticketId);
+  if (!ticket) return { error: "Ticket not found." };
+
+  if (!ticket.memberEmail) {
+    return { error: "No member email on this ticket — cannot look up a GHL contact." };
+  }
+
+  const actor = await getActor();
+  const label = `Ticket #${ticket.ticketNumber} — ${ticket.memberFirstName} ${ticket.memberLastName}`;
+
+  // ─── 1. Find contact by email ──────────────────────────────────────────────
+  let contact;
+  try {
+    contact = await searchContactByEmail(ticket.memberEmail);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[syncMemberToGhl] contact search error:", msg);
+    await db.serviceTicket.update({ where: { id: ticketId }, data: { ghlSyncStatus: "error" } });
+    await logActivity({
+      actor,
+      entityType: "service_ticket",
+      entityId: ticketId,
+      entityLabel: label,
+      action: "synced",
+      newValue: "error",
+      description: `GHL member sync failed for ${label}: could not reach GHL — ${msg}`,
+    });
+    return { error: `Could not reach GHL: ${msg}` };
+  }
+
+  if (!contact) {
+    await db.serviceTicket.update({ where: { id: ticketId }, data: { ghlSyncStatus: "error" } });
+    await logActivity({
+      actor,
+      entityType: "service_ticket",
+      entityId: ticketId,
+      entityLabel: label,
+      action: "synced",
+      newValue: "error",
+      description: `GHL member sync failed for ${label}: no contact found with email "${ticket.memberEmail}"`,
+    });
+    return {
+      error: `No GHL contact found with email "${ticket.memberEmail}". Make sure the contact exists in GHL first.`,
+    };
+  }
+
+  // ─── 2. Persist contact ID + sync status ──────────────────────────────────
+  await db.serviceTicket.update({
+    where: { id: ticketId },
+    data: {
+      ghlContactId:    contact.id,
+      ghlSyncStatus:   "synced",
+      ghlLastSyncedAt: new Date(),
+    },
+  });
+
+  revalidatePath(`/service-tickets/${ticketId}`);
+
+  await logActivity({
+    actor,
+    entityType: "service_ticket",
+    entityId: ticketId,
+    entityLabel: label,
+    action: "synced",
+    newValue: "synced",
+    description: `Synced member to GHL contact ${contact.id} for ${label}`,
+  });
+
+  return { ghlContactId: contact.id };
+}
+
+// ─── GHL webhook — notify member or service partner ──────────────────────────
+
+/**
+ * Fires a GHL workflow webhook to trigger member or partner notification.
+ * Persists notification timestamp + status and logs to the activity feed.
+ * Buttons only render when the relevant GHL contact ID is present (enforced in UI).
+ */
 export async function triggerGhlWebhook(
   ticketId: string,
   eventType: "notify_member" | "notify_partner"
@@ -415,16 +513,68 @@ export async function triggerGhlWebhook(
   const ticket = await getServiceTicket(ticketId);
   if (!ticket) return { error: "Ticket not found." };
 
+  const actor = await getActor();
+  const label = `Ticket #${ticket.ticketNumber} — ${ticket.memberFirstName} ${ticket.memberLastName}`;
+  const now = new Date();
+
+  const ghlContactId =
+    eventType === "notify_member"
+      ? ticket.ghlContactId
+      : ticket.vendor?.ghlContactId ?? null;
+
   try {
     const res = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ eventType, ticket }),
+      body: JSON.stringify({ eventType, ticketId, ghlContactId, ticket }),
     });
     if (!res.ok) throw new Error(`Webhook responded ${res.status}`);
-    return {};
   } catch (err) {
-    console.error("[triggerGhlWebhook]", err);
-    return { error: err instanceof Error ? err.message : "Webhook failed." };
+    const msg = err instanceof Error ? err.message : "Webhook failed.";
+    console.error("[triggerGhlWebhook]", msg);
+
+    // Persist failure
+    await db.serviceTicket.update({
+      where: { id: ticketId },
+      data:
+        eventType === "notify_member"
+          ? { memberNotifiedAt: now, memberNotifyStatus: "error" }
+          : { partnerNotifiedAt: now, partnerNotifyStatus: "error" },
+    });
+
+    await logActivity({
+      actor,
+      entityType: "service_ticket",
+      entityId: ticketId,
+      entityLabel: label,
+      action: "notified",
+      newValue: "error",
+      description: `GHL ${eventType === "notify_member" ? "member" : "partner"} notification failed for ${label}: ${msg}`,
+    });
+
+    return { error: msg };
   }
+
+  // Persist success
+  await db.serviceTicket.update({
+    where: { id: ticketId },
+    data:
+      eventType === "notify_member"
+        ? { memberNotifiedAt: now, memberNotifyStatus: "success" }
+        : { partnerNotifiedAt: now, partnerNotifyStatus: "success" },
+  });
+
+  revalidatePath(`/service-tickets/${ticketId}`);
+
+  await logActivity({
+    actor,
+    entityType: "service_ticket",
+    entityId: ticketId,
+    entityLabel: label,
+    action: "notified",
+    newValue: "success",
+    description: `GHL ${eventType === "notify_member" ? "member" : "service partner"} notification sent for ${label} (contact: ${ghlContactId ?? "unknown"})`,
+  });
+
+  return {};
 }

@@ -100,10 +100,15 @@ export const INSPECTION_SKIP_FIELDS = [
 ];
 
 export const SERVICE_TICKET_SKIP_FIELDS = [
-  "id", "createdAt", "updatedAt", "ticketNumber", "ghlContactId", "vendorId",
+  "id", "createdAt", "updatedAt", "ticketNumber", "vendorId",
+  "ghlContactId", "ghlSyncStatus", "ghlLastSyncedAt",
+  "memberNotifiedAt", "memberNotifyStatus", "partnerNotifiedAt", "partnerNotifyStatus",
 ];
 
-export const VENDOR_SKIP_FIELDS = ["id", "createdAt", "updatedAt"];
+export const VENDOR_SKIP_FIELDS = [
+  "id", "createdAt", "updatedAt",
+  "ghlContactId", "ghlSyncStatus", "ghlLastSyncedAt",
+];
 
 export const INSPECTOR_SKIP_FIELDS = ["id", "createdAt", "updatedAt", "vendorId"];
 

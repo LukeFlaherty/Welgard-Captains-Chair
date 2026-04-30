@@ -83,6 +83,10 @@ model Vendor {
   startDate           DateTime?
   websiteUrl          String?
   ghlReferenceId      String?
+  // GHL contact sync (looked up by email, persisted for future integrations)
+  ghlContactId        String?
+  ghlSyncStatus       String       @default("pending") // pending | synced | error
+  ghlLastSyncedAt     DateTime?
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
   inspections         Inspection[]
@@ -358,8 +362,16 @@ model ServiceTicket {
   completedBy       String? // who marked it complete
   ticketCompletedBy String? // from source system
 
-  // GHL
-  ghlContactId String?
+  // GHL — member contact sync (looked up by memberEmail)
+  ghlContactId    String?
+  ghlSyncStatus   String   @default("pending") // pending | synced | error
+  ghlLastSyncedAt DateTime?
+
+  // GHL — notification tracking
+  memberNotifiedAt    DateTime?
+  memberNotifyStatus  String?  // success | error
+  partnerNotifiedAt   DateTime?
+  partnerNotifyStatus String?  // success | error
 
   // Meta
   createdAt DateTime @default(now())
