@@ -8,6 +8,7 @@ import {
   Settings,
   UserCircle,
   Wrench,
+  Sparkles,
 } from "lucide-react";
 import type { ElementType } from "react";
 
@@ -39,6 +40,12 @@ export const navItems: NavItem[] = [
     href: "/service-tickets",
     icon: Wrench,
     roles: ["admin", "team_member", "vendor"],
+  },
+  {
+    label: "AI Insights",
+    href: "/ai-insights",
+    icon: Sparkles,
+    roles: ["admin", "team_member"],
   },
   {
     label: "Members",

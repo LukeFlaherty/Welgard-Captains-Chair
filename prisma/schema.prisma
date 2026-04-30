@@ -377,3 +377,12 @@ model ServiceTicket {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ─── AI Insights ──────────────────────────────────────────────────────────────
+
+model AiInsight {
+  id          String   @id @default(cuid())
+  text        String
+  generatedBy String
+  createdAt   DateTime @default(now())
+}
